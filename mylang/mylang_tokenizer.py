@@ -6,7 +6,7 @@ class Variable:
         self.line_number = line_number
         self.value = value
         self.rep = 'variable'
-        self.valid_after = ['plus', 'larrow', 'rarrow', 'equals', 'comma', 'assign', 'bar', 'star', 'forwardslash']
+        self.valid_after = ['plus', 'larrow', 'rarrow', 'equals', 'comma', 'assign', 'bar', 'star', 'forwardslash', 'obracket', 'startarrow', 'endarrow', 'dot']
     def isValid(self, token):
         print('offending', token.rep)
         if token.rep not in self.valid_after:
@@ -107,18 +107,107 @@ class Forwardslash:
 
     def __repr__(self):
         return "{}({})".format(self.__class__.__name__, "value = '{}'".format(self.value))
+class Scope:
+    def __init__(self, value, line_number):
+        self.line_number = line_number
+        self.value = value
+        self.rep = 'scope'
+        self.valid_after = ['variable']
+    def isValid(self, token):
+        if token.rep not in self.valid_after:
+            raise mylang_errors.IllegialPrecedence('At line number {line_number}, near {value}'.format(**self.__dict__))
+        return True
+
+    def __repr__(self):
+        return "{}({})".format(self.__class__.__name__, "value = '{}'".format(self.value))
+
+class OBracket:
+    def __init__(self, value, line_number):
+        self.line_number = line_number
+        self.value = value
+        self.rep = 'obracket'
+        self.valid_after = []
+    def isValid(self, token):
+        raise mylang_errors.IllegialPrecedence('At line number {line_number}, near {value}'.format(**self.__dict__))
+
+
+    def __repr__(self):
+        return "{}({})".format(self.__class__.__name__, "value = '{}'".format(self.value))
+class CBracket:
+    def __init__(self, value, line_number):
+        self.line_number = line_number
+        self.value = value
+        self.rep = 'cbracket'
+        self.valid_after = []
+    def isValid(self, token):
+        raise mylang_errors.IllegialPrecedence('At line number {line_number}, near {value}'.format(**self.__dict__))
+
+
+    def __repr__(self):
+        return "{}({})".format(self.__class__.__name__, "value = '{}'".format(self.value))
+class Startarrow:
+    def __init__(self, value, line_number):
+        self.line_number = line_number
+        self.value = value
+        self.rep = 'startarrow'
+        self.valid_after = ['variable']
+    def isValid(self, token):
+        if token.rep not in self.valid_after:
+            raise mylang_errors.IllegialPrecedence('At line number {line_number}, near {value}'.format(**self.__dict__))
+        return True
+    def __repr__(self):
+        return "{}({})".format(self.__class__.__name__, "value = '{}'".format(self.value))
+
+class Endarrow:
+    def __init__(self, value, line_number):
+        self.line_number = line_number
+        self.value = value
+        self.rep = 'endarrow'
+        self.valid_after = ['obracket']
+    def isValid(self, token):
+        if token.rep not in self.valid_after:
+            raise mylang_errors.IllegialPrecedence('At line number {line_number}, near {value}'.format(**self.__dict__))
+        return True
+    def __repr__(self):
+        return "{}({})".format(self.__class__.__name__, "value = '{}'".format(self.value))
+
+class Comma:
+    def __init__(self, value, line_number):
+        self.value = value
+        self.rep = 'comma'
+        self.line_number = line_number
+        self.valid_after = ['variable']
+    def isValid(self, token):
+        if token.rep not in self.valid_after:
+            raise mylang_errors.IllegialPrecedence('At line number {line_number}, near {value}'.format(**self.__dict__))
+        return True
+    def __repr__(self):
+        return "{}({})".format(self.__class__.__name__, "value = '{}'".format(self.value))
+class Dot:
+    def __init__(self, value, line_number):
+        self.value = value
+        self.rep = 'dot'
+        self.line_number = line_number
+        self.valid_after = ['variable']
+    def isValid(self, token):
+        if token.rep not in self.valid_after:
+            raise mylang_errors.IllegialPrecedence('At line number {line_number}, near {value}'.format(**self.__dict__))
+        return True
+    def __repr__(self):
+        return "{}({})".format(self.__class__.__name__, "value = '{}'".format(self.value))
 
 class Tokenize:
     token = collections.namedtuple('token', 'type, value')
-    grammar = r'"[a-zA-Z0-9_]+"|\d+|\b[a-zA-Z0-9_]+\b|\=|\b[a-zA-Z0-9]+\b|\+|\*|\-|\/'
-    types = [('STRING', r'"[a-zA-Z0-9_]+"'), ('DIGIT', r'\b\d+\b'), ('VARIABLE', r'\b[a-zA-Z0-9_]+\b'), ('ASSIGN', r'\='), ('PLUS', '\+'), ('STAR', r'\*'), ('BAR', r'\-'), ('FORWARDSLASH', '\/')]
-    class_reps = {'STRING':String, 'DIGIT':Digit, 'VARIABLE':Variable, 'ASSIGN':Assign, 'PLUS':Plus, 'STAR':Star, 'BAR':Bar, 'FORWARDSLASH':Forwardslash}
+    grammar = r'\bscope\b|"[a-zA-Z0-9_]+"|\d+|\b[a-zA-Z0-9_]+\b|\=|\b[a-zA-Z0-9]+\b|\+|\*|\-|\/|\{|\}|\>|\<|,|\.'
+    types = [('SCOPE', r'\bscope\b'), ('STRING', r'"[a-zA-Z0-9_]+"'), ('DIGIT', r'\b\d+\b'), ('VARIABLE', r'\b[a-zA-Z0-9_]+\b'), ('ASSIGN', r'\='), ('PLUS', '\+'), ('STAR', r'\*'), ('BAR', r'\-'), ('FORWARDSLASH', '\/'), ('OBRACKET', r'\{'), ('CBRACKET', r'\}'), ('STARTARROW', '\<'), ('ENDARROW', '\>'), ('COMMA', ','), ('DOT', '\.')]
+    class_reps = {'STRING':String, 'DIGIT':Digit, 'VARIABLE':Variable, 'ASSIGN':Assign, 'PLUS':Plus, 'STAR':Star, 'BAR':Bar, 'FORWARDSLASH':Forwardslash, 'SCOPE':Scope, 'OBRACKET':OBracket, 'CBRACKET':CBracket, 'STARTARROW':Startarrow, 'ENDARROW':Endarrow, 'COMMA':Comma, 'DOT':Dot}
     def __init__(self, filename):
         self.file_data = [i.strip('\n') for i in open(filename)]
-        self.tokenized_data = list(Tokenize.parse_tokens(self.file_data))
+        self.tokenized_data = filter(None, list(Tokenize.parse_tokens(self.file_data)))
         print(self.tokenized_data)
     @classmethod
     def parse_tokens(cls, file_data):
         for line_num, line in enumerate(file_data, start = 1):
             new_line = [cls.token([a for a, b in cls.types if re.findall(b, i)][0], i) for i in re.findall(cls.grammar, line)]
             yield [cls.token(i.type, cls.class_reps[i.type](i.value, line_num)) for i in new_line]
+Tokenize('mylang.txt')
