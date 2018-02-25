@@ -5,26 +5,13 @@ import string
 from mylang_config import config
 import mylang_warnings
 import functools
+import copy
+import itertools
+import trace_parser
+import mylang_wrappers
 
+tracing = trace_parser.Trace()
 
-def parse_header(**kwargs):
-    def parser_method(f):
-        @functools.wraps(f)
-        def wrapper(cls, original, line):
-            params, name, warnings = f(cls, line)
-            if len(params) > kwargs.get('param_num', 10):
-                raise mylang_errors.TooManyParamemters("At line {}, near 'scope', found {}, expected {}".format(original.value.line_number, len(params),  kwargs.get('param_num', 10)))
-            try:
-                del cls.__dict__['param_variables']
-            except KeyError:
-                pass
-            try:
-                del cls.__dict__['seen_header']
-            except KeyError:
-                pass
-            return params, name, warnings
-        return wrapper
-    return parser_method
 class Scope:
     def __init__(self, name, namespace, params):
         print 'tricky namespace', namespace
@@ -34,6 +21,7 @@ class Scope:
         self.scopes = {}
         self.variables = {'__params__':params, '__scope_name__':name}
         if not len(params):
+
             self.parse()
 
     def update_vals(self, path, target_val):
@@ -43,7 +31,7 @@ class Scope:
         else:
             self.scopes[path[0]].update_vals(path[1:], target_val)
 
-    @parse_header(param_num = config.MAX_PARAMS)
+    @mylang_wrappers.parse_header(param_num = config.MAX_PARAMS)
     def parse_scope_header(self, header):
         if 'seen_header' not in self.__dict__:
             scope_name = next(header)
@@ -58,9 +46,13 @@ class Scope:
                 return params, scope_name.value.value, warnings
             self.seen_header = scope_name.value.value
             self.parse_scope_header(scope_name.value, header)
+
     def parse(self):
         current_line = next(self.token_list, None)
+
         if current_line:
+            current_line, self.current_line_on = itertools.tee(current_line)
+            tracing.add_top_level(self.current_line_on)
             start = next(current_line)
             if start.type == 'VARIABLE':
                 checking = next(current_line)
@@ -95,9 +87,16 @@ class Scope:
                 print "scope block here", scope_block
                 self.scopes[name] = Scope(name, scope_block, params)
             self.parse()
+    def __len__(self):
+        return len(self.params)
+
+    @mylang_wrappers.verify_parameter(max_number = config.MAX_SCOPE_PARAMS)
     def __call__(self, *args):
-        self.variables.update(dict(zip(args, self.params)))
+        if len(args) != len(self.params):
+            raise mylang_errors.TooManyParamemters("scope '{}' expects {} parameters, but recieved {}".format(self.__scope_name__, len(self), len(args)))
+        self.variables.update(dict(zip(self.params, args)))
         self.parse()
+        return self
     def parse_scope_params(self, first, line, found = []):
         start = next(line, None)
         print 'found here', found
@@ -130,6 +129,7 @@ class Scope:
     def parse_scope(self, original, current_line, lines):
         params, results, flags = self.parse_scope_header(original, current_line)
         return params, results, flags
+
     def parse_assign(self, line):
 
         operation_converters = {'PLUS':lambda x, y:x+y, 'BAR':lambda x,y:x-y, 'STAR':lambda x, y:x*y, 'FORWARDSLASH':lambda x, y:x/y}
@@ -141,6 +141,53 @@ class Scope:
                     raise mylang_errors.VariableNotDeclared("At line {}, '{}' not declared".format(current.value.line_number, current.value.value))
                 return self.variables[current.value.value]
             current.value.isValid(test_final.value)
+            if test_final.type == 'OPAREN':
+                current_params = []
+                while True:
+                    check_param = next(line, None)
+                    if not check_param:
+                        break
+                    if check_param.type == 'VARIABLE':
+                        second_param = next(line, None)
+                        if not second_param:
+                            raise mylang_errors.ParameterSytnaxError("At line {}, near '{}'".format(check_param.value.line_number, check_param.value.value))
+                        check_param.value.isValid(second_param.value)
+                        if second_param.type == 'COMMA':
+                            if check_param.value.value not in self.variables:
+                                raise mylang_errors.VariableNotDeclared("At line {}, near {}: '{}' not declared".format(check_param.value.line_number, check_param.value.value, check_param.value.value))
+                            current_params.append(self.variables[check_param.value.value])
+                        if second_param.type == 'CPAREN':
+                            current_params.append(check_param.value.value)
+                            break
+                    if check_param.type == 'DIGIT':
+                        second_param = next(line, None)
+                        if not second_param:
+                            raise mylang_errors.ParameterSytnaxError("At line {}, near '{}'".format(check_param.value.line_number, check_param.value.value))
+                        if second_param.type == 'COMMA':
+                            if check_param.value.value not in self.variables:
+                                raise mylang_errors.VariableNotDeclared("At line {}, near {}: '{}' not declared".format(check_param.value.line_number, check_param.value.value, check_param.value.value))
+                            current_params.append(int(self.variables[check_param.value.value]))
+                        if second_param.type == 'CPAREN':
+                            current_params.append(int(check_param.value.value))
+                            break
+                    if check_param.type == 'STRING':
+                        second_param = next(line, None)
+                        if not second_param:
+                            raise mylang_errors.ParameterSytnaxError("At line {}, near '{}'".format(check_param.value.line_number, check_param.value.value))
+                        if second_param.type == 'COMMA':
+                            current_params.append(check_param.value.value[1:-1])
+                        if second_param.type == "CPAREN":
+                            current_params.append(check_param.value.value[1:-1])
+                            break
+                final_check = next(line, None)
+                if final_check:
+                    check_param.value.isValid(final_check.value)
+                    if final_check.type in operation_converters:
+                        raise mylang_errors.NotYetSupportedError("At line {}, near '{}': feature not yet implemented".format(final_check.value.line_number, final_check.value.value))
+                if current.value.value not in self.scopes:
+                    raise mylang_errors.VariableNotDeclared("At line {}, scope '{}' not declared".format(current.value.line_number, current.value.value))
+
+                return self.scopes[current.value.value](*current_params)
             if test_final.type == 'DOT':
                 path = collections.deque([current.value.value])
                 end_line = False
@@ -165,9 +212,16 @@ class Scope:
                         last_seen = temp_path
                         break
                 print 'self.scopes', self.scopes
-                if path[0] not in self.scopes:
+                flag = False
+                try:
+                    temp = self.variables[path[0]][path[1]]
+                except:
+                    pass
+                else:
+                    flag = True
+                scope_result = self.scopes if not flag else self.variables
+                if path[0] not in scope_result:
                     raise mylang_errors.AttributeNotFound("At line {}, near {}: variable '{}' has no attribute '{}'".format(current.value.line_number, current.value.value, current.value.value, path[1]))
-                scope_result = self.scopes
                 while path:
                     val = path.popleft()
                     scope_result = scope_result[val]
@@ -272,9 +326,13 @@ class Parser:
         self.scopes = Scopes()
         self.parse()
         print(self.variables)
+
     def parse(self):
         current_line = next(self.token_list, None)
+
         if current_line:
+            current_line, self.current_line_on = itertools.tee(current_line)
+            tracing.add_top_level(self.current_line_on)
             start = next(current_line)
             if start.type == 'VARIABLE':
                 checking = next(current_line)
@@ -333,7 +391,7 @@ class Parser:
                 print "self.scopes, ", self.scopes
             self.parse()
 
-    @parse_header(param_num = config.MAX_PARAMS)
+    @mylang_wrappers.parse_header(param_num = config.MAX_PARAMS)
     def parse_scope_header(self, header):
         if 'seen_header' not in self.__dict__:
             scope_name = next(header)
@@ -381,6 +439,7 @@ class Parser:
     def parse_scope(self, original, current_line, lines):
         params, results, flags = self.parse_scope_header(original, current_line)
         return params, results, flags
+
     def parse_assign(self, line):
 
         operation_converters = {'PLUS':lambda x, y:x+y, 'BAR':lambda x,y:x-y, 'STAR':lambda x, y:x*y, 'FORWARDSLASH':lambda x, y:x/y}
@@ -392,6 +451,51 @@ class Parser:
                     raise mylang_errors.VariableNotDeclared("At line {}, '{}' not declared".format(current.value.line_number, current.value.value))
                 return self.variables[current.value.value]
             current.value.isValid(test_final.value)
+            if test_final.type == 'OPAREN':
+                current_params = []
+                while True:
+                    check_param = next(line, None)
+                    if not check_param:
+                        break
+                    if check_param.type == 'VARIABLE':
+                        second_param = next(line, None)
+                        if not second_param:
+                            raise mylang_errors.ParameterSytnaxError("At line {}, near '{}'".format(check_param.value.line_number, check_param.value.value))
+                        check_param.value.isValid(second_param.value)
+                        if second_param.type == 'COMMA':
+                            if check_param.value.value not in self.variables:
+                                raise mylang_errors.VariableNotDeclared("At line {}, near {}: '{}' not declared".format(check_param.value.line_number, check_param.value.value, check_param.value.value))
+                            current_params.append(self.variables[check_param.value.value])
+                        if second_param.type == 'CPAREN':
+                            current_params.append(check_param.value.value)
+                            break
+                    if check_param.type == 'DIGIT':
+                        second_param = next(line, None)
+                        if not second_param:
+                            raise mylang_errors.ParameterSytnaxError("At line {}, near '{}'".format(check_param.value.line_number, check_param.value.value))
+                        if second_param.type == 'COMMA':
+                            current_params.append(int(check_param.value.value))
+                        if second_param.type == 'CPAREN':
+                            current_params.append(int(check_param.value.value))
+                            break
+                    if check_param.type == 'STRING':
+                        second_param = next(line, None)
+                        if not second_param:
+                            raise mylang_errors.ParameterSytnaxError("At line {}, near '{}'".format(check_param.value.line_number, check_param.value.value))
+                        if second_param.type == 'COMMA':
+                            current_params.append(check_param.value.value[1:-1])
+                        if second_param.type == "CPAREN":
+                            current_params.append(check_param.value.value[1:-1])
+                            break
+                final_check = next(line, None)
+                if final_check:
+                    check_param.value.isValid(final_check.value)
+                    if final_check.type in operation_converters:
+                        raise mylang_errors.NotYetSupportedError("At line {}, near '{}': feature not yet implemented".format(final_check.value.line_number, final_check.value.value))
+                if current.value.value not in self.scopes:
+                    raise mylang_errors.VariableNotDeclared("At line {}, scope '{}' not declared".format(current.value.line_number, current.value.value))
+
+                return self.scopes[current.value.value](*current_params)
             if test_final.type == 'DOT':
                 path = collections.deque([current.value.value])
                 end_line = False
@@ -416,9 +520,16 @@ class Parser:
                         last_seen = temp_path
                         break
                 print 'self.scopes', self.scopes
-                if path[0] not in self.scopes:
+                flag = False
+                try:
+                    temp = self.variables[path[0]][path[1]]
+                except:
+                    pass
+                else:
+                    flag = True
+                scope_result = self.scopes if not flag else self.variables
+                if path[0] not in scope_result:
                     raise mylang_errors.AttributeNotFound("At line {}, near {}: variable '{}' has no attribute '{}'".format(current.value.line_number, current.value.value, current.value.value, path[1]))
-                scope_result = self.scopes
                 while path:
                     val = path.popleft()
                     scope_result = scope_result[val]
