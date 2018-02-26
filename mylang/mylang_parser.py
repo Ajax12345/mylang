@@ -13,13 +13,15 @@ import mylang_wrappers
 tracing = trace_parser.Trace()
 
 class Scope:
-    def __init__(self, name, namespace, params):
-        print 'tricky namespace', namespace
+    def __init__(self, name, namespace, params, **kwargs):
+
         self.__scope_name__ = name
         self.params = params
         self.token_list = iter(map(iter, namespace))
         self.scopes = {}
         self.variables = {'__params__':params, '__scope_name__':name}
+        if kwargs.get('current_namespace', None):
+            self.variables.update(kwargs.get('current_namespace'))
         if not len(params):
 
             self.parse()
@@ -63,13 +65,13 @@ class Scope:
             if start.type == 'SCOPE':
                 params, name, flags = self.parse_scope(start, current_line, self.token_list)
 
-                print("params: {}, name: {}, flags: {}".format(*[params, name, flags]))
+
                 temp_flag = bool(flags)
                 scope_block = []
                 brackets_seen = collections.deque(['{']) if not temp_flag else collections.deque()
                 while True:
                     line = [c for c in next(self.token_list, None)]
-                    print 'line here', line
+
                     if len(line) == 1 and line[0].value.value == '{':
                         if temp_flag:
                             temp_flag = False
@@ -84,7 +86,7 @@ class Scope:
                         raise mylang_errors.ReachedEndOfScopeBlock("missing block initiating character '{'")
                     scope_block.append(line)
 
-                print "scope block here", scope_block
+
                 self.scopes[name] = Scope(name, scope_block, params)
             self.parse()
     def __len__(self):
@@ -99,7 +101,7 @@ class Scope:
         return self
     def parse_scope_params(self, first, line, found = []):
         start = next(line, None)
-        print 'found here', found
+
         if not start:
             if not found:
                 raise mylang_errors.ParameterSytnaxError('At line {}, near {}, illegal paramter declaration'.format(first.value.line_number, first.value.value))
@@ -211,7 +213,7 @@ class Scope:
                     if temp_path.type in operation_converters:
                         last_seen = temp_path
                         break
-                print 'self.scopes', self.scopes
+
                 flag = False
                 try:
                     temp = self.variables[path[0]][path[1]]
@@ -228,11 +230,11 @@ class Scope:
                 if last_seen:
                     try:
                         final_part = self.parse_assign(line)
-                        print 'scope_result',scope_result, type(scope_result)
+
                         return operation_converters[last_seen.type](scope_result, final_part)
                     except:
                         raise mylang_errors.IncompatableTypes("Cannot {} value of type '{}' to type '{}'".format({'PLUS':'contactinate', 'BAR':'subtract', 'STAR':'multiply', 'FORWARDSLASH':'divide'}[last_seen.type], type(scope_result).__name__, type(final_part).__name__))
-                print "scope_result", scope_result
+
                 return scope_result
             '''
             if test_final.type == 'PLUS':
@@ -259,7 +261,7 @@ class Scope:
             if test_final.type in operation_converters:
                 if test_final.type == 'STAR':
                     second = next(line, None)
-                    print('second', second.value.value, current.value.value)
+
                     if second.type != 'DIGIT':
 
                         raise mylang_errors.IncompatableTypes("At line {}, cannot multiply type 'INT' to type {}".format(second.value.line_number, type(second.value.value).__name__))
@@ -323,10 +325,110 @@ class Parser:
         self.token_list = iter(map(iter, token_list))
         self.vals = []
         self.variables = {}
+        self.procedures = {}
         self.scopes = Scopes()
         self.parse()
         print(self.variables)
 
+    @mylang_wrappers.verify_procedure_parameter(valid_return_types = config.ALLOWED_RETURN_TYPES, max_param_val = config.MAX_PARAMS)
+    def parse_procedure_header(self, header_line, current = []):
+
+        current_t = next(header_line, None)
+
+        if not current_t:
+            raise mylang_errors.InvalidEndOfDeclaration("Reached invalid end of procedure declaration")
+        if current_t.type == 'CPAREN':
+            second = next(header_line, None)
+            if not second:
+
+                return current, mylang_warnings.NoHeaderSeen, None
+            current_t.value.isValid(second.value)
+            if second.type == 'OBRACKET':
+                print 'returning here'
+                return current, None, None
+            if second.type == 'TORETURN':
+                final_check = next(header_line, None)
+                if not final_check:
+                    raise mylang_errors.InvalidEndOfDeclaration("At line {}, near '{}': a return type must be specified".format(second.value.line_number, second.value.value))
+                last_check = next(header_line, None)
+                if not last_check:
+                    print 'returning here'
+                    return current, mylang_warnings.NoHeaderSeen, final_check.value.value
+                final_check.value.isValid(last_check.value)
+                print 'returning here'
+                return current, None, final_check.value.value
+        if current_t.type == 'VARIABLE':
+            check_next = next(header_line, None)
+            if not check_next:
+                raise mylang_errors.InvalidEndOfDeclaration("At line {}, near '{}', rearched invalid end of procedure declaration".format(current_t.value.line_number, current_t.value.value))
+            current_t.value.isValid(check_next.value)
+            if check_next.type == 'PLUS':
+                raise mylang_errors.NotYetSupportedError("At line {}, near '{}': feature not yet supported".format(check_next.value.line_number, check_next.value.value))
+                '''
+                checking_next_val = next(header_line, None)
+                if not checking_next_val:
+                    raise mylang_errors.InvalidEndOfDeclaration("At line {}, near '{}': expecting close paren or parameter specification type".format(final_check.value.line_number, final_check.value.value))
+                if checking_next_val.type == 'COLON':
+                    testing_third = next(header_line, None)
+                    if not testing_third:
+                        raise mylang_errors.InvalidEndOfDeclaration("At line {}, near '{}': expecting close paren or parameter specification type".format(checking_next_val.line_number, checking_next_val.value.value))
+                    testing_second_last = next(header_line, None)
+                    if not testing_second:
+                        raise mylang_errors.InvalidEndOfDeclaration("At line {}, near '{}': expecting close paren or parameter specification type".format(testing_third.line_number, testing_third.value.value))
+                    if testing_second_last.type == 'CPAREN':
+                        '''
+            if check_next.type == 'CPAREN':
+                current.append(current_t.value.value)
+                final_check = next(header_line, None)
+                if not final_check:
+                    return current, mylang_warnings.NoHeaderSeen, None
+                check_next.value.isValid(final_check.value)
+                if final_check.type == 'OBRACKET':
+                    return current, None, None
+
+                if final_check.type == 'TORETURN':
+                    return_type = next(header_line, None)
+                    if not return_type:
+                        raise mylang_errors.InvalidEndOfDeclaration("At line {}, near '->': expecting a return type".format(final_check.value.line_number))
+                    final_bracket = next(header_line, None)
+                    if not final_bracket:
+                        return current, mylang_warnings.NoHeaderSeen, return_type.value.value
+                    return current, None, return_type.value.value
+            if check_next.type == 'COMMA':
+                return self.parse_procedure_header(header_line, current+[current_t.value.value])
+            if check_next.type == 'COLON':
+                testing_second = next(header_line, None)
+                if not testing_second:
+                    raise mylang_errors.InvalidEndOfDeclaration("At line {}, near {}: reached invalid end of procedure declaration".format(check_next.value.line_number, check_next.value.value))
+                check_next.value.isValid(testing_second.value)
+                final_check = next(header_line, None)
+                if not final_check:
+                    raise mylang_errors.InvalidEndOfDeclaration("At line {}, near {}: reached invalid end of procedure declaration".format(check_next.value.line_number, check_next.value.value))
+
+                testing_second.value.isValid(final_check.value)
+                #print 'last here', testing_second.value, final_check.value
+
+                if final_check.type == 'COMMA':
+                    return self.parse_procedure_header(header_line, current+[[current_t.value.value, testing_second.value.value]])
+                if final_check.type == 'CPAREN':
+                    checking_final_val = next(header_line, None)
+                    if not checking_final_val:
+                        current.append([current_t.value.value, testing_second.value.value])
+                        return current, mylang_warnings.NoHeaderSeen, None
+                    final_check.value.isValid(checking_final_val.value)
+                    if checking_final_val.type == 'OBRACKET':
+                        current.append([current_t.value.value, testing_second.value.value])
+                        return current, None, None
+                    if checking_final_val.type == 'TORETURN':
+                        last_final_check = next(header_line, None)
+                        if not last_final_check:
+                            raise mylang_errors.InvalidEndOfDeclaration("At line {}, near '->': must specify a return type".format(checking_final_val.value.line_number))
+                        last_check_1 = next(header_line, None)
+                        current.append([current_t.value.value, testing_second.value.value])
+                        if not last_check_1:
+                            return current, mylang_warnings.NoHeaderSeen, last_final_check.value.value
+
+                        return current, None, last_final_check.value.value
     def parse(self):
         current_line = next(self.token_list, None)
 
@@ -357,16 +459,56 @@ class Parser:
                                 path.append(current.value.value)
                                 to_assign = self.parse_assign(current_line)
                                 break
-                    print 'path', list(path)[1:]
+
 
                     self.scopes[path[0]].update_vals(list(path)[1:], to_assign)
 
 
 
+            if start.type == 'GLOBAL':
+                next_start = next(current_line, None)
 
+                if not next_start:
+                    raise mylang_errors.InvalidEndOfDeclaration("At line {}, near 'global', expecting scope or procedure declaration".format(start.value.line_number))
+                start.value.isValid(next_start.value)
+                if next_start.type == 'SCOPE':
+                    params, name, flags = self.parse_scope(next_start, current_line, self.token_list)
+
+                    temp_flag = bool(flags)
+                    scope_block = []
+                    brackets_seen = collections.deque(['{']) if not temp_flag else collections.deque()
+                    while True:
+                        line = [c for c in next(self.token_list, None)]
+                        if len(line) == 1 and line[0].value.value == '{':
+                            brackets_seen.append('{')
+                        if len(line) == 1 and line[0].value.value == '}':
+                            try:
+                                val = brackets_seen.pop()
+                                scope_block.append(line)
+                            except:
+                                raise mylang_errors.ReachedEndOfScopeBlock("missing block initiating character '{'")
+                            if not brackets_seen:
+                                break
+                        if line is None:
+                            raise mylang_errors.ReachedEndOfScopeBlock("missing block terminating character '}'")
+
+                        scope_block.append(line)
+                    self.scopes[name] = Scope(name, scope_block, params, current_namespace = self.variables)
+            if start.type == 'PROCEDURE':
+                possible_name = next(current_line, None)
+                self.possible_name = possible_name
+                if not possible_name:
+                    raise mylang_errors.InvalidEndOfDeclaration("At line {}, near '{}': expecting a scope or procedure declaration".format(start.value.line_number, start.value.value))
+                start.value.isValid(possible_name.value)
+                possible_start = next(current_line, None)
+                if not possible_start:
+                    raise mylang_errors.InvalidEndOfDeclaration("At line {}, near '{}': expecting a scope or procedure declaration".format(start.value.line_number, possible_name.value.value))
+                possible_name.value.isValid(possible_start.value)
+                function_params, warnings, return_type = self.parse_procedure_header(current_line)
+                print "procedure name is: {}, params are: {}, warnings include: {}, return_type is {}".format(possible_name.value.value, function_params, warnings, return_type)
             if start.type == 'SCOPE':
                 params, name, flags = self.parse_scope(start, current_line, self.token_list)
-                print("params: {}, name: {}, flags: {}".format(*[params, name, flags]))
+
                 temp_flag = bool(flags)
                 scope_block = []
                 brackets_seen = collections.deque(['{']) if not temp_flag else collections.deque()
@@ -386,9 +528,9 @@ class Parser:
                         raise mylang_errors.ReachedEndOfScopeBlock("missing block terminating character '}'")
 
                     scope_block.append(line)
-                print 'scope_block', scope_block
+
                 self.scopes[name] = Scope(name, scope_block, params)
-                print "self.scopes, ", self.scopes
+
             self.parse()
 
     @mylang_wrappers.parse_header(param_num = config.MAX_PARAMS)
@@ -409,7 +551,7 @@ class Parser:
 
     def parse_scope_params(self, first, line, found = []):
         start = next(line, None)
-        print 'found here', found
+
         if not start:
             if not found:
                 raise mylang_errors.ParameterSytnaxError('At line {}, near {}, illegal paramter declaration'.format(first.value.line_number, first.value.value))
@@ -519,7 +661,7 @@ class Parser:
                     if temp_path.type in operation_converters:
                         last_seen = temp_path
                         break
-                print 'self.scopes', self.scopes
+
                 flag = False
                 try:
                     temp = self.variables[path[0]][path[1]]
@@ -536,11 +678,11 @@ class Parser:
                 if last_seen:
                     try:
                         final_part = self.parse_assign(line)
-                        print 'scope_result',scope_result, type(scope_result)
+
                         return operation_converters[last_seen.type](scope_result, final_part)
                     except:
                         raise mylang_errors.IncompatableTypes("Cannot {} value of type '{}' to type '{}'".format({'PLUS':'contactinate', 'BAR':'subtract', 'STAR':'multiply', 'FORWARDSLASH':'divide'}[last_seen.type], type(scope_result).__name__, type(final_part).__name__))
-                print "scope_result", scope_result
+
                 return scope_result
             '''
             if test_final.type == 'PLUS':
@@ -567,7 +709,7 @@ class Parser:
             if test_final.type in operation_converters:
                 if test_final.type == 'STAR':
                     second = next(line, None)
-                    print('second', second.value.value, current.value.value)
+
                     if second.type != 'DIGIT':
 
                         raise mylang_errors.IncompatableTypes("At line {}, cannot multiply type 'INT' to type {}".format(second.value.line_number, type(second.value.value).__name__))
@@ -597,4 +739,4 @@ class Parser:
 
 
 
-Parser(mylang_tokenizer.Tokenize('mylang.txt').tokenized_data)
+Parser(mylang_tokenizer.Tokenize('mylang1.txt').tokenized_data)
