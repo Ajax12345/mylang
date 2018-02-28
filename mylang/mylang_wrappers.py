@@ -1,5 +1,6 @@
 import functools
 import mylang_errors
+
 def verify_parameter(**kwargs):
     def overriding_method(f):
         def wrapper(cls, *args):
@@ -8,6 +9,7 @@ def verify_parameter(**kwargs):
             return f(cls, *args)
         return wrapper
     return overriding_method
+
 def verify_procedure_parameter(**kwargs):
     def parser_wrapper(f):
         def wrapper(cls, *args):
@@ -22,6 +24,7 @@ def verify_procedure_parameter(**kwargs):
 
         return wrapper
     return parser_wrapper
+
 def parse_header(**kwargs):
     def parser_method(f):
         @functools.wraps(f)
@@ -40,3 +43,25 @@ def parse_header(**kwargs):
             return params, name, warnings
         return wrapper
     return parser_method
+
+
+def verify_passed_types(f):
+    def wrapper(cls, *args):
+        if len(args) != len(cls.params):
+            raise mylang_errors.TooManyParamemters("Procedure '{}' expected {} parameters, but was passed {}".format(cls.name, len(cls.params), len(args)))
+        if args:
+            for a, b in zip(args, cls.params):
+                if isinstance(b, list):
+                    if type(a) != {'int':int, 'string':str}[b[-1]]:
+                        raise mylang_errors.InvalidParameterType("In procedure '{}': parameter '{}' requires a value of type '{}', recieved '{}'".format(cls.name, b[0], {'int':int, 'string':str}[b[-1]].__name__, type(a).__name__))
+        return f(cls, *args)
+    return wrapper
+
+
+def check_existence(**kwargs):
+    '''simple wrapper to check for different types of variables existing in the current namespace'''
+    def the_method(f):
+        def wrapper(cls, val):
+            return f(cls, val)
+        return wrapper
+    return the_method
