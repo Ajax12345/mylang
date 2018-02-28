@@ -17,9 +17,29 @@ class ParameterSytnaxError(Exception):
 class ReachedEndOfScopeBlock(Exception):
     pass
 
+class ReachedEndOfProcedureBlock(Exception):
+    pass
+
+class InvalidStartOfProcedureBlock(Exception):
+    pass
+
 class InvalidScopeBlock(Exception):
     pass
 
 class AttributeNotFound(Exception):
     pass
 
+class NotYetSupportedError(Exception):
+    pass
+
+class InvalidEndOfDeclaration(Exception):
+    pass
+
+class InvalidProcedureReturnType(Exception):
+    pass
+
+class NoProcedureDeclared(Exception):
+    pass
+
+class InvalidParameterType(Exception):
+    pass
