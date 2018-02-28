@@ -1,0 +1,68 @@
+second_val = 20*10 + 1000000
+
+global scope James
+{
+   age = 18
+   name = "James";
+   testing_val = second_val;
+   scope Joe{
+
+      age = 15;
+
+    }
+
+
+}
+global scope Lilly{
+  age = 12
+}
+testing_global = James.testing_val;
+second = 10
+scope Joe<name, age, lastname>{
+  lastname = lastname;
+  name = name;
+  age = age;
+
+}
+
+my_age = James.Joe.age + 10*20 + 100;
+scope_name = James.__scope_name__
+James.Joe.age = 100000;
+final_val = James.Joe.age;
+lilly_age = Lilly.age
+new_scope = Joe("Joe", 15, "Petullo")
+new_final_val = new_scope.age
+
+
+procedure James(name:string, age:int, height){
+  new_val = 10;
+  return new_val;
+}
+
+
+val = 10;
+procedure James(){
+  new_val = 10;
+  accumulate new_val;
+  second_val = 100
+  accumulate second_val
+}
+
+current_name = James.__scope_name__
+paramt_num = James.signature.parameters
+
+scope TestingProcedure{
+procedure joe(){
+  new_val = 10
+  }
+}
+
+creation_reciep = TestingProcedure.__receipt__
+scope Person{
+  name = "James"
+  age = 18
+}
+current_person = Person.name
+j = Joe("Joe", 15, "Petullo")
+
+final_j_test = j.age

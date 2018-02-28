@@ -1,0 +1,9 @@
+val = 10;
+global transmute procedure James(){
+  new_val = val;
+  second_val = 20
+  val = second_val*100
+  return new_val + second_val
+}
+
+James()
