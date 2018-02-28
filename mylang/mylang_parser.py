@@ -22,7 +22,8 @@ class Procedure:
         self.to_return = []
         self.token_list = iter(map(iter, namespace))
         self.params = parameters
-        self.can_mutate = kwargs.get('transmute', False)
+        self.can_mutate = kwargs.get('can_mutate', False)
+        print 'self.can_mutate', self.can_mutate
         if not self.params:
             self.parse()
         print 'to_return', self.to_return
@@ -501,7 +502,7 @@ class Procedure:
     def __call__(self, *args):
         if args:
             self.variables.update(dict(zip([i if not isinstance(i, list) else i[0] for i in self.params], args)))
-        self.parse()
+            self.parse()
         return self.to_return, self.variables if self.can_mutate else None
 
 class Procedures:
@@ -698,6 +699,7 @@ class Scope:
                 if not next_start:
                     raise mylang_errors.InvalidEndOfDeclaration("At line {}, near 'global', expecting scope or procedure declaration".format(start.value.line_number))
                 start.value.isValid(next_start.value)
+                print 'IN HERE TESTING GLOBAL'
                 if next_start.type == 'TRANSMUTE':
                     next_start_1 = next(current_line, None)
                     if not next_start_1:
@@ -740,6 +742,7 @@ class Scope:
 
                         self.scopes[possible_name.value.value] = Scope(possible_name.value.value, [], [], current_namespace = {'param_num':len(function_params)})
                         self.scopes[possible_name.value.value].scopes['signature'] = Scope('Signature', [], [], current_namespace = {'parameters':', '.join(i if not isinstance(i, list) else i[0] for i in function_params), 'types':', '.join('{}:{}'.format(i, None) if not isinstance(i, list) else "{}:{}".format(i[0], i[1]) for i in function_params)})
+
                         self.procedures[possible_name.value.value] = Procedure(possible_name.value.value, function_params, procedure_namespace, can_mutate = True, current_namespace = self.variables)
                 if next_start.type == 'PROCEDURE':
                     possible_name = next(current_line, None)
@@ -1207,6 +1210,48 @@ class Parser:
                             return current, mylang_warnings.NoHeaderSeen, last_final_check.value.value
 
                         return current, None, last_final_check.value.value
+
+    @mylang_wrappers.check_existence()
+    def variable_exists(self, var):
+        if var.value.value not in self.variables:
+            raise mylang_errors.VariableNotDeclared("At line {}, near '{}': variable '{}' not declared".format(var.value.line_number, var.value.value, var.value.value))
+        return self.variables[var.value.value]
+    def parse_expression(self, line):
+        operation_converters = {'PLUS':lambda x, y:x+y, 'BAR':lambda x,y:x-y, 'STAR':lambda x, y:x*y, 'FORWARDSLASH':lambda x, y:x/y}
+        current = next(line, None)
+        if not current:
+            return None
+        if current.type == 'VARIABLE':
+            next_val = next(line, None)
+            if not next_val or next_val.type == 'COMMA' or next_val.type == 'CPAREN':
+                return self.variable_exists(current)
+            current.value.isValid(next_val.value)
+            if next_val.type not in operation_converters:
+                raise mylang_errors.IllegialPrecedence("At line {}, near '{}': expecting a mutating operator (+|-|/|*|%)".format(next_val.value.line_number, next_val.value.value))
+            returned_val = self.parse_expression(line)
+            if type(self.variables[current.value.value]) != type(returned_val):
+                raise mylang_errors.IncompatableTypes("At line {}, near '{}': cannot {} variable of type '{}' to type '{}'".format(current.value.line_number, current.value.value, {'PLUS':'concatinate', 'BAR':'subtract', 'STAR':'multiply', 'FORWARDSLASH':'divide'}[next_val.type], type(self.variables[current.value.value]).__name__, type(returned_val).__name__))
+            return operation_converters[next_val.type](self.variables[current.value.value], returned_val)
+        if current.type == 'DIGIT':
+            next_val = next(line, None)
+            if not next_val or next_val.type == 'COMMA' or next_val.type == 'CPAREN':
+                return int(current.value.value)
+            current.value.isValid(next_val.value)
+            return_val = self.parse_expression(line)
+            if not isinstance(return_val, int):
+                raise mylang_errors.IncompatableTypes("At line {}, near '{}': cannot {} variable of type '{}' to type '{}'".format(current.value.line_number, current.value.value, {'PLUS':'concatinate', 'BAR':'subtract', 'STAR':'multiply', 'FORWARDSLASH':'divide'}[next_val.type], type(self.variables[current.value.value]).__name__, type(return_val).__name__))
+            return operation_converters[next_val.type](int(current.value.value), return_val)
+        if current.type == 'STRING':
+            next_val = next(line, None)
+            if not next_val or next_val.type == 'COMMA' or next_val.type == 'CPAREN':
+                return current.value.value[1:-1]
+            return_val = self.parse_expression(line)
+            if not isinstance(return_val, str):
+                raise mylang_errors.IncompatableTypes("At line {}, near '{}': cannot {} variable of type '{}' to type '{}'".format(current.value.line_number, current.value.value, {'PLUS':'concatinate', 'BAR':'subtract', 'STAR':'multiply', 'FORWARDSLASH':'divide'}[next_val.type], type(self.variables[current.value.value]).__name__, type(return_val).__name__))
+            if next_val.type == "PLUS":
+                return current.value.value[1:-1] + return_val
+        raise mylang_errors.NotYetSupportedError("Operation not yet supported")
+
     def parse(self):
         current_line = next(self.token_list, None)
 
@@ -1217,6 +1262,27 @@ class Parser:
             if start.type == 'VARIABLE':
                 checking = next(current_line)
                 start.value.isValid(checking.value)
+                if checking.type == 'OPAREN':
+                    full_params = []
+                    current_param = next(current_line, None)
+                    if not current_param:
+                        raise mylang_errors.ParameterSytnaxError("At line {}, near '{}': invalid parameter syntax".format(checking.value.line_number, checking.value.value))
+                    checking.value.isValid(current_param.value)
+                    if current_param.type == 'CPAREN':
+                        result, namespace = self.procedures[start.value.value]()
+                        #check for truthiness of function __call__ returned values
+                        print 'result is', result, 'namespace is', namespace
+                    else:
+                        current_line = iter([current_param]+[i for i in current_line])
+                        while True:
+                            returned_expresssion = self.parse_expression(current_line)
+                            full_params.append(returned_expresssion)
+                            checking_last = next(current_line, None)
+                            if not checking_last:
+                                break
+                            current_line = iter([checking_last]+[i for i in current_line])
+                        print "final params here", full_params
+
                 if checking.type == 'ASSIGN':
                     to_store = self.parse_assign(current_line)
                     self.variables[start.value.value] = to_store
@@ -1473,7 +1539,7 @@ class Parser:
         current = next(line, None)
         if current.type == 'VARIABLE':
             test_final = next(line, None)
-            if not test_final:
+            if not test_final or test_final.type == 'COMMA' or test_final.type == 'CPAREN':
                 if current.value.value not in self.variables:
                     raise mylang_errors.VariableNotDeclared("At line {}, '{}' not declared".format(current.value.line_number, current.value.value))
                 return self.variables[current.value.value]
@@ -1623,5 +1689,5 @@ class Parser:
                 raise mylang_errors.IncompatableTypes("At line {}, cannot {} type 'string' to type '{}'".format(current.value.line_number, {'PLUS':'concatinate', 'BAR':'subtract', 'STAR':'multiply', 'FORWARDSLASH':'divide'}[test_final.type], type(returned_val).__name__))
 
 
-if __name__ == "__main__":
-    Parser(mylang_tokenizer.Tokenize('mylang.txt').tokenized_data)
+
+Parser(mylang_tokenizer.Tokenize('mylang1.txt').tokenized_data)
