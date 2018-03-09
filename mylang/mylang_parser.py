@@ -11,26 +11,104 @@ import itertools
 import trace_parser
 import mylang_wrappers
 
-tracing = trace_parser.Trace()
+
 class Procedure:
     def __init__(self, name, parameters, namespace, **kwargs):
         self.variables = kwargs.get('current_namespace') if kwargs.get('current_namespace') else {}
         self.is_global = bool(kwargs.get('current_namespace'))
         self.scopes = {}
-        self.procedures = {}
+
         self.name = name
+        self.procedures = {}
         self.to_return = []
         self.token_list = iter(map(iter, namespace))
         self.params = parameters
+        print 'parameters for {name}'.format(**self.__dict__), self.params
         self.can_mutate = kwargs.get('can_mutate', False)
         print 'self.can_mutate', self.can_mutate
         if not self.params:
             self.parse()
-        print 'to_return', self.to_return
+
+    @mylang_wrappers.check_existence()
+    def variable_exists(self, var):
+        if var.value.value not in self.variables:
+            raise mylang_errors.VariableNotDeclared("At line {}, near '{}': variable '{}' not declared".format(var.value.line_number, var.value.value, var.value.value))
+        return self.variables[var.value.value]
+    def parse_expression(self, line):
+        operation_converters = {'PLUS':lambda x, y:x+y, 'BAR':lambda x,y:x-y, 'STAR':lambda x, y:x*y, 'FORWARDSLASH':lambda x, y:x/y}
+        current = next(line, None)
+        if not current:
+            return None
+        if current.type == 'VARIABLE':
+            next_val = next(line, None)
+            if not next_val or next_val.type == 'COMMA' or next_val.type == 'CPAREN':
+                return self.variable_exists(current)
+            current.value.isValid(next_val.value)
+            if next_val.type == 'DOT':
+                path = [current.value.value]
+                seen_operator = False
+                while True:
+                    current_attr = next(line, None)
+                    if not current_attr:
+                        raise mylang_errors.InvalidAttributeCall("At line {}, near '{}'".format(next_val.value.line_number, next_val.value.value))
+                    if current_attr.type == 'VARIABLE':
+                        checking_next = next(line, None)
+                        if not checking_next:
+                            path.append(current_attr.value.value)
+                            break
+                        if checking_next.type in operation_converters:
+                            seen_operator = check_next.type
+                            path.append(current_attr.value.value)
+                            break
+                        path.append(current_attr.value.value)
+                start_scope = path[0]
+                if start_scope not in self.scopes:
+                    raise mylang_errors.VariableNotDeclared("Scope '{}' not declared".format(start_scope))
+                current_value_attr = self.scopes
+                while path:
+                    try:
+                        new_val = current_value_attr[path[0]]
+                    except:
+                        if path[0] not in current_value_attr.scopes:
+                            raise mylang_errors.AttributeNotFound("At line {}, near '{}':scope '{}' has no attribute '{}'".format(current_attr.value.line_number, current_attr.value.value, start_scope, path[0]))
+                        current_value_attr = current_value_attr.scopes[path[0]]
+                        path = path[1:]
+                    else:
+                        current_value_attr = new_val
+                if seen_operator:
+                    returned_val = self.parse_expression(line)
+                    if type(current_value_attr) != type(returned_val):
+                        raise mylang_errors.IncompatableTypes("At line {}, near '{}': cannot {} value of type '{}' to type '{}'".format(current_attr.value.line_number, current_attr.value.value, {'PLUS':'concatinate', 'BAR':'subtract', 'STAR':'multiply', 'FORWARDSLASH':'divide'}[seen_operator], type(current_value_attr).__name__, type(returned_val).__name__))
+                    return operation_converters[seen_operator](current_value_attr, returned_val)
+
+                raise mylang_errors.IllegialPrecedence("At line {}, near '{}': expecting a mutating operator (+|-|/|*|%)".format(next_val.value.line_number, next_val.value.value))
+            returned_val = self.parse_expression(line)
+            if type(self.variables[current.value.value]) != type(returned_val):
+                raise mylang_errors.IncompatableTypes("At line {}, near '{}': cannot {} variable of type '{}' to type '{}'".format(current.value.line_number, current.value.value, {'PLUS':'concatinate', 'BAR':'subtract', 'STAR':'multiply', 'FORWARDSLASH':'divide'}[next_val.type], type(self.variables[current.value.value]).__name__, type(returned_val).__name__))
+            return operation_converters[next_val.type](self.variables[current.value.value], returned_val)
+        if current.type == 'DIGIT':
+            next_val = next(line, None)
+            if not next_val or next_val.type == 'COMMA' or next_val.type == 'CPAREN':
+                return int(current.value.value)
+            current.value.isValid(next_val.value)
+            return_val = self.parse_expression(line)
+            if not isinstance(return_val, int):
+                raise mylang_errors.IncompatableTypes("At line {}, near '{}': cannot {} variable of type '{}' to type '{}'".format(current.value.line_number, current.value.value, {'PLUS':'concatinate', 'BAR':'subtract', 'STAR':'multiply', 'FORWARDSLASH':'divide'}[next_val.type], type(self.variables[current.value.value]).__name__, type(return_val).__name__))
+            return operation_converters[next_val.type](int(current.value.value), return_val)
+        if current.type == 'STRING':
+            next_val = next(line, None)
+            if not next_val or next_val.type == 'COMMA' or next_val.type == 'CPAREN':
+                return current.value.value[1:-1]
+            return_val = self.parse_expression(line)
+            if not isinstance(return_val, str):
+                raise mylang_errors.IncompatableTypes("At line {}, near '{}': cannot {} variable of type '{}' to type '{}'".format(current.value.line_number, current.value.value, {'PLUS':'concatinate', 'BAR':'subtract', 'STAR':'multiply', 'FORWARDSLASH':'divide'}[next_val.type], type(self.variables[current.value.value]).__name__, type(return_val).__name__))
+            if next_val.type == "PLUS":
+                return current.value.value[1:-1] + return_val
+        raise mylang_errors.NotYetSupportedError("Operation not yet supported")
 
     @mylang_wrappers.verify_procedure_parameter(valid_return_types = config.ALLOWED_RETURN_TYPES, max_param_val = config.MAX_PARAMS)
-    def parse_procedure_header(self, header_line, current = []):
-
+    def parse_procedure_header(self, header_line, current = None):
+        current = [] if not current else current
         current_t = next(header_line, None)
 
         if not current_t:
@@ -132,14 +210,37 @@ class Procedure:
 
         if current_line:
             current_line, self.current_line_on = itertools.tee(current_line)
-            tracing.add_top_level(self.current_line_on)
             start = next(current_line)
             if start.type == 'VARIABLE':
                 checking = next(current_line)
                 start.value.isValid(checking.value)
+                if checking.type == 'OPAREN':
+                    full_params = []
+                    current_param = next(current_line, None)
+                    if not current_param:
+                        raise mylang_errors.ParameterSytnaxError("At line {}, near '{}': invalid parameter syntax".format(checking.value.line_number, checking.value.value))
+                    checking.value.isValid(current_param.value)
+                    if current_param.type == 'CPAREN':
+                        result, namespace = self.procedures[start.value.value]()
+                        #check for truthiness of function __call__ returned values
+                        print 'result is', result, 'namespace is', namespace
+                    else:
+                        current_line = iter([current_param]+[i for i in current_line])
+                        while True:
+                            returned_expresssion = self.parse_expression(current_line)
+                            full_params.append(returned_expresssion)
+                            checking_last = next(current_line, None)
+                            if not checking_last:
+                                break
+                            current_line = iter([checking_last]+[i for i in current_line])
+                        print "final params here", full_params
+
                 if checking.type == 'ASSIGN':
                     to_store = self.parse_assign(current_line)
+                    print 'TO STORE HERE', to_store
                     self.variables[start.value.value] = to_store
+                    if any(isinstance(to_store, i) for i in [int, str]):
+                        self.scopes[start.value.value] = Scope(start.value.value, [], [], current_namespace = {i:getattr(to_store, i)() for i in ['upper', 'lower', 'capitalize', 'isupper', 'islower']} if isinstance(to_store, str) else {'increment':to_store+1, 'squared':pow(to_store, 2)})
 
                 if checking.type == 'DOT':
                     path = collections.deque([start.value.value])
@@ -164,7 +265,7 @@ class Procedure:
 
             if start.type == 'RETURN':
                 self.to_return = self.parse_assign(current_line)
-                return
+
             if start.type == 'ACCUMULATE':
                 self.to_return.append(self.parse_assign(current_line))
 
@@ -190,6 +291,33 @@ class Procedure:
                         possible_name.value.isValid(possible_start.value)
                         function_params, warnings, return_type = self.parse_procedure_header(current_line)
                         print "procedure name is: {}, params are: {}, warnings include: {}, return_type is {}".format(possible_name.value.value, function_params, warnings, return_type)
+                        print "procedure name is: {}, params are: {}, warnings include: {}, return_type is {}".format(possible_name.value.value, function_params, warnings, return_type)
+                        current_stack = collections.deque(['{']) if not warnings else collections.deque()
+                        procedure_namespace = []
+                        while True:
+                            current_namespace_line = next(self.token_list, None)
+
+                            if not current_namespace_line:
+                                raise mylang_errors.ReachedEndOfProcedureBlock("Expecting a close bracket for procedure '{}'".format(possible_name.value.value))
+                            new_namespace_line = [i for i in current_namespace_line]
+
+
+                            if any(i.type == 'OBRACKET' for i in new_namespace_line):
+                                current_stack.append('{')
+                                procedure_namespace.append(new_namespace_line)
+                            if any(i.type == 'CBRACKET' for i in new_namespace_line):
+                                if not current_stack:
+                                    raise mylang_errors.InvalidStartOfProcedureBlock("Missing '{' for start of scope of procedure '{}'".format(possible_name.value.value))
+                                val = current_stack.pop()
+                                if not current_stack:
+                                    break
+                            else:
+                                procedure_namespace.append(new_namespace_line)
+
+
+                        self.scopes[possible_name.value.value] = Scope(possible_name.value.value, [], [], current_namespace = {'param_num':len(function_params)})
+                        self.scopes[possible_name.value.value].scopes['signature'] = Scope('Signature', [], [], current_namespace = {'parameters':', '.join(i if not isinstance(i, list) else i[0] for i in function_params), 'types':', '.join('{}:{}'.format(i, None) if not isinstance(i, list) else "{}:{}".format(i[0], i[1]) for i in function_params)})
+                        self.procedures[possible_name.value.value] = Procedure(possible_name.value.value, function_params, procedure_namespace, can_mutate = True, current_namespace = self.variables)
                 if next_start.type == 'PROCEDURE':
                     possible_name = next(current_line, None)
                     self.possible_name = possible_name
@@ -202,6 +330,32 @@ class Procedure:
                     possible_name.value.isValid(possible_start.value)
                     function_params, warnings, return_type = self.parse_procedure_header(current_line)
                     print "procedure name is: {}, params are: {}, warnings include: {}, return_type is {}".format(possible_name.value.value, function_params, warnings, return_type)
+                    current_stack = collections.deque(['{']) if not warnings else collections.deque()
+                    procedure_namespace = []
+                    while True:
+                        current_namespace_line = next(self.token_list, None)
+
+                        if not current_namespace_line:
+                            raise mylang_errors.ReachedEndOfProcedureBlock("Expecting a close bracket for procedure '{}'".format(possible_name.value.value))
+                        new_namespace_line = [i for i in current_namespace_line]
+
+
+                        if any(i.type == 'OBRACKET' for i in new_namespace_line):
+                            current_stack.append('{')
+                            procedure_namespace.append(new_namespace_line)
+                        if any(i.type == 'CBRACKET' for i in new_namespace_line):
+                            if not current_stack:
+                                raise mylang_errors.InvalidStartOfProcedureBlock("Missing '{' for start of scope of procedure '{}'".format(possible_name.value.value))
+                            val = current_stack.pop()
+                            if not current_stack:
+                                break
+                        else:
+                            procedure_namespace.append(new_namespace_line)
+
+
+                    self.scopes[possible_name.value.value] = Scope(possible_name.value.value, [], [], current_namespace = {'param_num':len(function_params)})
+                    self.scopes[possible_name.value.value].scopes['signature'] = Scope('Signature', [], [], current_namespace = {'parameters':', '.join(i if not isinstance(i, list) else i[0] for i in function_params), 'types':', '.join('{}:{}'.format(i, None) if not isinstance(i, list) else "{}:{}".format(i[0], i[1]) for i in function_params)})
+                    self.procedures[possible_name.value.value] = Procedure(possible_name.value.value, function_params, procedure_namespace, current_namespace = self.variables)
                 if next_start.type == 'SCOPE':
                     params, name, flags = self.parse_scope(next_start, current_line, self.token_list)
 
@@ -262,7 +416,7 @@ class Procedure:
 
                 self.scopes[possible_name.value.value] = Scope(possible_name.value.value, [], [], current_namespace = {'param_num':len(function_params)})
                 self.scopes[possible_name.value.value].scopes['signature'] = Scope('Signature', [], [], current_namespace = {'parameters':', '.join(i if not isinstance(i, list) else i[0] for i in function_params), 'types':', '.join('{}:{}'.format(i, None) if not isinstance(i, list) else "{}:{}".format(i[0], i[1]) for i in function_params)})
-                self.procedures[possible_name.value.value] = Procedure(possible_name.value.value, function_params, procedure_namespace, )
+                self.procedures[possible_name.value.value] = Procedure(possible_name.value.value, function_params, procedure_namespace)
             if start.type == 'SCOPE':
                 params, name, flags = self.parse_scope(start, current_line, self.token_list)
 
@@ -289,6 +443,7 @@ class Procedure:
                 self.scopes[name] = Scope(name, scope_block, params)
 
             self.parse()
+
 
     @mylang_wrappers.parse_header(param_num = config.MAX_PARAMS)
     def parse_scope_header(self, header):
@@ -427,11 +582,15 @@ class Procedure:
                 else:
                     flag = True
                 scope_result = self.scopes if not flag else self.variables
+                start_scope = path[0]
                 if path[0] not in scope_result:
                     raise mylang_errors.AttributeNotFound("At line {}, near {}: variable '{}' has no attribute '{}'".format(current.value.line_number, current.value.value, current.value.value, path[1]))
                 while path:
                     val = path.popleft()
-                    scope_result = scope_result[val]
+                    try:
+                        scope_result = scope_result[val]
+                    except:
+                        scope_result = self.scopes[start_scope].scopes[val]
                 if last_seen:
                     try:
                         final_part = self.parse_assign(line)
@@ -559,8 +718,8 @@ class Scope:
             self.parse_scope_header(scope_name.value, header)
 
     @mylang_wrappers.verify_procedure_parameter(valid_return_types = config.ALLOWED_RETURN_TYPES, max_param_val = config.MAX_PARAMS)
-    def parse_procedure_header(self, header_line, current = []):
-
+    def parse_procedure_header(self, header_line, current = None):
+        current = [] if not current else current
         current_t = next(header_line, None)
 
         if not current_t:
@@ -662,14 +821,17 @@ class Scope:
 
         if current_line:
             current_line, self.current_line_on = itertools.tee(current_line)
-            tracing.add_top_level(self.current_line_on)
+
             start = next(current_line)
             if start.type == 'VARIABLE':
                 checking = next(current_line)
                 start.value.isValid(checking.value)
                 if checking.type == 'ASSIGN':
                     to_store = self.parse_assign(current_line)
+                    print 'TO STORE HERE', to_store
                     self.variables[start.value.value] = to_store
+                    if any(isinstance(to_store, i) for i in [int, str]):
+                        self.scopes[start.value.value] = Scope(start.value.value, [], [], current_namespace = {i:getattr(to_store, i)() for i in ['upper', 'lower', 'capitalize', 'isupper', 'islower']} if isinstance(to_store, str) else {'increment':to_store+1, 'squared':pow(to_store, 2)})
 
                 if checking.type == 'DOT':
                     path = collections.deque([start.value.value])
@@ -1112,8 +1274,10 @@ class Parser:
         print(self.variables)
 
     @mylang_wrappers.verify_procedure_parameter(valid_return_types = config.ALLOWED_RETURN_TYPES, max_param_val = config.MAX_PARAMS)
-    def parse_procedure_header(self, header_line, current = []):
-
+    def parse_procedure_header(self, header_line, current = None):
+        current = [] if not current else current
+        checking_header_line = [i for i in header_line]
+        header_line = iter(checking_header_line)
         current_t = next(header_line, None)
 
         if not current_t:
@@ -1214,8 +1378,11 @@ class Parser:
     @mylang_wrappers.check_existence()
     def variable_exists(self, var):
         if var.value.value not in self.variables:
-            raise mylang_errors.VariableNotDeclared("At line {}, near '{}': variable '{}' not declared".format(var.value.line_number, var.value.value, var.value.value))
+            if var.value.value not in self.scopes:
+                raise mylang_errors.VariableNotDeclared("At line {}, near '{}': variable '{}' not declared".format(var.value.line_number, var.value.value, var.value.value))
+            return self.scopes[var.value.value]
         return self.variables[var.value.value]
+
     def parse_expression(self, line):
         operation_converters = {'PLUS':lambda x, y:x+y, 'BAR':lambda x,y:x-y, 'STAR':lambda x, y:x*y, 'FORWARDSLASH':lambda x, y:x/y}
         current = next(line, None)
@@ -1226,8 +1393,92 @@ class Parser:
             if not next_val or next_val.type == 'COMMA' or next_val.type == 'CPAREN':
                 return self.variable_exists(current)
             current.value.isValid(next_val.value)
-            if next_val.type not in operation_converters:
-                raise mylang_errors.IllegialPrecedence("At line {}, near '{}': expecting a mutating operator (+|-|/|*|%)".format(next_val.value.line_number, next_val.value.value))
+
+            if next_val.type == 'OPAREN':
+                check_next_v = next(line, None)
+                if not check_next_v:
+                    raise mylang_errors.ParameterSytnaxError("At line {}, near '{}': reached unexpected end of procedure call".format(current.value.line_number, current.value.value))
+                if check_next_v.type == 'CPAREN':
+                    if current.value.value not in self.procedures:
+                        raise mylang_errors.AttributeNotFound("At line {}, near '{}': procedure '{}' not found".format(current.value.line_number, current.value.value, current.value.value))
+                    result, namespace = self.procedures[current.value.value]()
+                    self.variables = namespace if namespace else self.variables
+                    check_last_v = next(line, None)
+                    if check_last_v.type in ['COMMA', 'CPAREN']:
+                        return result
+                    if check_last_v.type in operation_converters:
+                        final_result = self.parse_expression(line)
+                        if type(result) != type(final_result):
+                            raise mylang_errors.IncompatableTypes("At line {}, near '{}' cannot {} value of type '{}' to type '{}'".format(check_last_v.value.line_number, check_last_v.value.value, {'PLUS':'concatinate', 'BAR':'subtract', 'STAR':'multiply', 'FORWARDSLASH':'divide'}[check_last_v.type], type(result).__name__, type(final_result).__name__))
+                        return operation_converters[check_last_v.type](result, final_result)
+                if current.value.value not in self.procedures:
+                    raise mylang_errors.VariableNotDeclared("At line {}: procedure '{}' not declared".format(current.value.line_number, current.value.value))
+                line = iter([check_next_v]+[i for i in line])
+                params = []
+                while True:
+                    current_param = self.parse_expression(line)
+                    can_continue = next(line, None)
+                    params.append(current_param)
+                    if not can_continue or can_continue.type == 'CPAREN':
+                        break
+                    line = iter([can_continue]+[i for i in line])
+                print 'PARAMS HERE', params
+                result, namespace = self.procedures[current.value.value](*params)
+                self.variables = namespace if namespace else self.variables
+                checking_next_v = next(line, None)
+                if not checking_next_v or checking_next_v.type in ['COMMA', 'CPAREN']:
+                    return result
+                if checking_next_v.type in operation_converters:
+                    returned_result = self.parse_expression(line)
+                    if type(result) != type(returned_result):
+                        raise mylang_errors.IncompatableTypes("At line {}, near '{}' cannot {} value of type '{}' to type '{}'".format(checking_next_v.value.line_number, checking_next_v.value.value, {'PLUS':'concatinate', 'BAR':'subtract', 'STAR':'multiply', 'FORWARDSLASH':'divide'}[checking_next_v.type], type(result).__name__, type(returned_result).__name__))
+                    return operation_converters[checking_next_v.type](result, returned_result)
+            if next_val.type == 'DOT':
+                path = [current.value.value]
+
+                seen_operator = False
+                while True:
+                    current_attr = next(line, None)
+                    if not current_attr:
+                        raise mylang_errors.InvalidAttributeCall("At line {}, near '{}'".format(next_val.value.line_number, next_val.value.value))
+                    if current_attr.type == 'VARIABLE':
+                        checking_next = next(line, None)
+                        if not checking_next:
+                            path.append(current_attr.value.value)
+                            break
+                        current_attr.value.isValid(checking_next.value)
+                        if checking_next.type in operation_converters or checking_next.type == 'CPAREN':
+                            seen_operator = None if checking_next.type == 'CPAREN' else checking_next.type
+
+                            path.append(current_attr.value.value)
+                            break
+                        path.append(current_attr.value.value)
+                start_scope = path[0]
+                flag = False
+                if start_scope not in self.scopes:
+                    if start_scope not in self.variables:
+                        raise mylang_errors.VariableNotDeclared("Scope '{}' not declared".format(start_scope))
+                    flag = True
+                current_value_attr = self.scopes if not flag else self.variables
+                while path:
+                    try:
+                        new_val = current_value_attr[path[0]]
+                        print 'in try block', new_val
+                    except:
+                        if path[0] not in current_value_attr.scopes:
+                            raise mylang_errors.AttributeNotFound("At line {}, near '{}':scope '{}' has no attribute '{}'".format(current_attr.value.line_number, current_attr.value.value, start_scope, path[0]))
+                        current_value_attr = current_value_attr.scopes[path[0]]
+                        path = path[1:]
+                    else:
+                        current_value_attr = new_val
+                        path = path[1:]
+                if seen_operator:
+                    returned_val = self.parse_expression(line)
+                    if type(current_value_attr) != type(returned_val):
+                        raise mylang_errors.IncompatableTypes("At line {}, near '{}': cannot {} value of type '{}' to type '{}'".format(current_attr.value.line_number, current_attr.value.value, {'PLUS':'concatinate', 'BAR':'subtract', 'STAR':'multiply', 'FORWARDSLASH':'divide'}[seen_operator], type(current_value_attr).__name__, type(returned_val).__name__))
+                    return operation_converters[seen_operator](current_value_attr, returned_val)
+
+                return current_value_attr
             returned_val = self.parse_expression(line)
             if type(self.variables[current.value.value]) != type(returned_val):
                 raise mylang_errors.IncompatableTypes("At line {}, near '{}': cannot {} variable of type '{}' to type '{}'".format(current.value.line_number, current.value.value, {'PLUS':'concatinate', 'BAR':'subtract', 'STAR':'multiply', 'FORWARDSLASH':'divide'}[next_val.type], type(self.variables[current.value.value]).__name__, type(returned_val).__name__))
@@ -1257,7 +1508,7 @@ class Parser:
 
         if current_line:
             current_line, self.current_line_on = itertools.tee(current_line)
-            tracing.add_top_level(self.current_line_on)
+
             start = next(current_line)
             if start.type == 'VARIABLE':
                 checking = next(current_line)
@@ -1271,7 +1522,11 @@ class Parser:
                     if current_param.type == 'CPAREN':
                         result, namespace = self.procedures[start.value.value]()
                         #check for truthiness of function __call__ returned values
-                        print 'result is', result, 'namespace is', namespace
+
+                        if result:
+                            raise mylang_errors.InvalidProcedureReturn("At line {}, near '{}': procedure '{}' is not void".format(start.value.line_number, start.value.value, start.value.value))
+                        if namespace:
+                            self.variables = namespace
                     else:
                         current_line = iter([current_param]+[i for i in current_line])
                         while True:
@@ -1282,10 +1537,18 @@ class Parser:
                                 break
                             current_line = iter([checking_last]+[i for i in current_line])
                         print "final params here", full_params
+                        result, namespace = self.procedures[start.value.value](*full_params)
+                        if result:
+                            raise mylang_errors.InvalidProcedureReturn("At line {}, near '{}': procedure '{}' is not void".format(start.value.line_number, start.value.value, start.value.value))
+                        if namespace:
+                            self.variables = namespace
 
                 if checking.type == 'ASSIGN':
                     to_store = self.parse_assign(current_line)
+                    print 'TO STORE HERE', to_store
                     self.variables[start.value.value] = to_store
+                    if any(isinstance(to_store, i) for i in [int, str]):
+                        self.scopes[start.value.value] = Scope(start.value.value, [], [], current_namespace = {i:getattr(to_store, i)() for i in ['upper', 'lower', 'capitalize', 'isupper', 'islower']} if isinstance(to_store, str) else {'increment':to_store+1, 'squared':pow(to_store, 2)})
 
                 if checking.type == 'DOT':
                     path = collections.deque([start.value.value])
@@ -1368,8 +1631,12 @@ class Parser:
                     if not possible_start:
                         raise mylang_errors.InvalidEndOfDeclaration("At line {}, near '{}': expecting a scope or procedure declaration".format(next_start.value.line_number, possible_name.value.value))
                     possible_name.value.isValid(possible_start.value)
+                    temp_current_line = [i for i in current_line]
+                    print 'CURRENT LINE FOR function {}'.format(possible_name.value.value), temp_current_line
+                    current_line = iter(temp_current_line)
                     function_params, warnings, return_type = self.parse_procedure_header(current_line)
-                    print "procedure name is: {}, params are: {}, warnings include: {}, return_type is {}".format(possible_name.value.value, function_params, warnings, return_type)
+                    print 'CHECKING FUNCTION_PARAMS here for function {}'.format(possible_name.value.value), function_params
+
                     current_stack = collections.deque(['{']) if not warnings else collections.deque()
                     procedure_namespace = []
                     while True:
@@ -1429,8 +1696,10 @@ class Parser:
                 if not possible_start:
                     raise mylang_errors.InvalidEndOfDeclaration("At line {}, near '{}': expecting a scope or procedure declaration".format(start.value.line_number, possible_name.value.value))
                 possible_name.value.isValid(possible_start.value)
+                print 'CURRENT LINE FOR function {}'.format(possible_name.value.value), current_line
+
                 function_params, warnings, return_type = self.parse_procedure_header(current_line)
-                print "procedure name is: {}, params are: {}, warnings include: {}, return_type is {}".format(possible_name.value.value, function_params, warnings, return_type)
+                print 'CHECKING FUNCTION_PARAMS here for function {}'.format(possible_name.value.value), function_params
                 current_stack = collections.deque(['{']) if not warnings else collections.deque()
                 procedure_namespace = []
                 while True:
@@ -1545,6 +1814,24 @@ class Parser:
                 return self.variables[current.value.value]
             current.value.isValid(test_final.value)
             if test_final.type == 'OPAREN':
+                #currently, here
+                if current.value.value in self.procedures:
+                    testing_next = next(line, None)
+                    if not testing_next:
+                        raise mylang_errors.InvalidParameterType("At line {}: invalid syntax".format(current.value.line_number))
+                    line = iter([testing_next]+[i for i in line])
+                    function_params = []
+                    while True:
+                        current_param = self.parse_expression(line)
+                        function_params.append(current_param)
+                        checking_next_val = next(line, None)
+                        if not checking_next_val:
+                            break
+                        line = iter([checking_next_val]+[i for i in line])
+                    result, namespace = self.procedures[current.value.value](*function_params)
+                    if namespace:
+                        self.variables = namespace
+                    return result
                 current_params = []
                 while True:
                     check_param = next(line, None)
@@ -1621,11 +1908,20 @@ class Parser:
                 else:
                     flag = True
                 scope_result = self.scopes if not flag else self.variables
+                start_scope = path[0]
+                last_path_val = None
                 if path[0] not in scope_result:
                     raise mylang_errors.AttributeNotFound("At line {}, near {}: variable '{}' has no attribute '{}'".format(current.value.line_number, current.value.value, current.value.value, path[1]))
                 while path:
                     val = path.popleft()
-                    scope_result = scope_result[val]
+                    try:
+                        scope_result = scope_result[val]
+                        last_path_val = val
+                    except:
+                        try:
+                            scope_result = self.scopes[start_scope].scopes[last_path_val][val]
+                        except:
+                            scope_result = self.variables[start_scope].scopes[last_path_val][val]
                 if last_seen:
                     try:
                         final_part = self.parse_assign(line)
