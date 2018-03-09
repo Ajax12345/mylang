@@ -1,9 +1,24 @@
 val = 10;
-global transmute procedure James(){
-  new_val = val;
-  second_val = 20
-  val = second_val*100
-  return new_val + second_val
+scope J{
+
+  age = 18
+
+}
+scope Joe<age>{
+  age = age
+}
+new_j = Joe(15);
+procedure TestingNew(the_val){
+    return the_val*10
 }
 
-James()
+global procedure James(first, new_val:int, last){
+
+  last_val = new_val*val
+  return last_val
+}
+
+returned_val = James("James", new_j.age + 100, TestingNew(100))
+s = 10
+slower = J.age.squared
+last = new_j.age.squared
