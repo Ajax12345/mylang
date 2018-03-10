@@ -1,0 +1,36 @@
+val = 10;
+scope J{
+
+  age = 18
+
+}
+scope Joe<age>{
+  age = age
+}
+new_j = Joe(15);
+procedure TestingNew(the_val){
+    return the_val*10
+}
+
+global procedure James(first, new_val:int, last){
+
+  last_val = new_val*val
+  return last_val
+}
+
+returned_val = James("James", new_j.age + 100, TestingNew(100))
+s = 10
+slower = J.age.squared
+last = new_j.age.squared
+
+scope Manager{
+  name = "James";
+  pay = 0;
+  global transmute procedure give_raise(val:int){
+      pay = 10000
+  }
+  
+}
+
+Manager.give_raise(100);
+t1 = Manager.pay
