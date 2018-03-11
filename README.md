@@ -1,2 +1,2 @@
 # mylang
-mlang is a dynamically typed, object orientated programming language
+mlang is a dynamically typed, object orientated toy programming language.
