@@ -47,14 +47,19 @@ def parse_header(**kwargs):
 
 def verify_passed_types(f):
     def wrapper(cls, *args):
+        print 'ARGS', args
+        print 'CLS', cls.params
         if len(args) != len(cls.params):
             raise mylang_errors.TooManyParamemters("Procedure '{}' expected {} parameters, but was passed {}".format(cls.name, len(cls.params), len(args)))
         if args:
             for a, b in zip(args, cls.params):
                 if isinstance(b, list):
-                    if type(a) != {'int':int, 'string':str}[b[-1]]:
+                    if type(a) != {'int':int, 'string':str, 'str':str}[b[-1]]:
                         raise mylang_errors.InvalidParameterType("In procedure '{}': parameter '{}' requires a value of type '{}', recieved '{}'".format(cls.name, b[0], {'int':int, 'string':str}[b[-1]].__name__, type(a).__name__))
-        return f(cls, *args)
+        a, b = f(cls, *args)
+        if a and cls.return_type and type(a) != {'int':int, 'str':str, 'string':str}[cls.return_type]:
+            raise mylang_errors.InvalidProcedureReturnType("Procedure '{}' can only return type '{}', but caught '{}'".format(cls.name, {'int':int, 'str':str}[cls.return_type].__name__, type(a).__name__))
+        return a, b
     return wrapper
 
 
@@ -65,3 +70,26 @@ def check_existence(**kwargs):
             return f(cls, val)
         return wrapper
     return the_method
+
+
+def check_private(**kwargs):
+    def pass_method(f):
+        def wrapper(cls, val_name):
+            print 'val_name here', val_name
+            if val_name in cls.private_variables:
+                if kwargs.get('suppress'):
+                    raise mylang_errors.VariableNotDeclared("Scope value '{}' not declared".format(val_name))
+                raise mylang_errors.PrivateVariableDeclaration("Scope value '{}' is a private member variable".format(val_name))
+            return f(cls, val_name)
+        return wrapper
+    return pass_method
+
+def verify_private_procedure(**kwargs):
+    def pass_name_method(f):
+        def wrapper(cls, name):
+            if name in cls.private_procedures:
+                if kwargs.get('suppress'):
+                    raise mylang_errors.VariableNotDeclared("procedure '{}' not declared".format(cls.name))
+                raise mylang_errors.PrivateVariableDeclaration("procedure '{}' is private".format(cls.name))
+        return wrapper
+    return pass_name_method
