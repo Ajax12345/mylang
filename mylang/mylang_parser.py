@@ -10,6 +10,7 @@ import datetime
 import itertools
 import trace_parser
 import mylang_wrappers
+import mylang_builtins
 #IDEA: conda programming language!
 
 class Procedure:
@@ -20,6 +21,7 @@ class Procedure:
         self.is_private = kwargs.get('is_private', False)
         self.return_type = kwargs.get('return_type')
         self.name = name
+        print 'in constructor for procedure {name} with visibility of {is_private}'.format(**self.__dict__)
         self.procedures = {}
         self.to_return = []
         self.token_list = iter(map(iter, namespace))
@@ -248,10 +250,11 @@ class Procedure:
 
                 if checking.type == 'ASSIGN':
                     to_store = self.parse_assign(current_line)
-
+                    print 'To store here,', to_store, start.value.value
                     self.variables[start.value.value] = to_store
                     if any(isinstance(to_store, i) for i in [int, str]):
-                        self.scopes[start.value.value] = Scope(start.value.value, [], [], current_namespace = {i:getattr(to_store, i)() for i in ['upper', 'lower', 'capitalize', 'isupper', 'islower']} if isinstance(to_store, str) else {'increment':to_store+1, 'squared':pow(to_store, 2)})
+                        self.scopes[start.value.value] = Scope(start.value.value, [], [], current_namespace = {i:getattr(to_store, i)() for i in ['upper', 'lower', 'capitalize', 'isupper', 'islower']} if isinstance(to_store, str) else {'increment':to_store+1, 'squared':pow(to_store, 2)}, builtins = mylang_builtins.builtin_methods[type(to_store).__name__])
+
 
                 if checking.type == 'DOT':
                     path = collections.deque([start.value.value])
@@ -721,6 +724,8 @@ class Scope:
         self.procedures = Procedures()
         self.__scope_name__ = name
         self.params = params
+        self.builtins = kwargs.get('builtins', {})
+        print 'builtins here for name {}'.format(name), self.builtins
         self.private_variables = []
         self.token_list = iter(map(iter, namespace))
         self.private_procedures = []
@@ -734,8 +739,9 @@ class Scope:
 
             self.parse()
 
+    @classmethod
     @mylang_wrappers.verify_private_procedure(suppress = config.PRIVATE_PROCEDURE_LEVEL)
-    def private_procedure_check(self, name):
+    def private_procedure_check(cls, name):
         raise Exception("Something went wrong")
 
     def parse_expression(self, line):
@@ -1028,10 +1034,10 @@ class Scope:
 
                 if checking.type == 'ASSIGN':
                     to_store = self.parse_assign(current_line)
-                    #print 'TO STORE HERE', to_store
+                    print 'storing string?', to_store, start.value.value
                     self.variables[start.value.value] = to_store
                     if any(isinstance(to_store, i) for i in [int, str]):
-                        self.scopes[start.value.value] = Scope(start.value.value, [], [], current_namespace = {i:getattr(to_store, i)() for i in ['upper', 'lower', 'capitalize', 'isupper', 'islower']} if isinstance(to_store, str) else {'increment':to_store+1, 'squared':pow(to_store, 2)})
+                        self.scopes[start.value.value] = Scope(start.value.value, [], [], current_namespace = {i:getattr(to_store, i)() for i in ['upper', 'lower', 'capitalize', 'isupper', 'islower']} if isinstance(to_store, str) else {'increment':to_store+1, 'squared':pow(to_store, 2)}, builtins = mylang_builtins.builtin_methods[type(to_store).__name__])
 
                 if checking.type == 'DOT':
                     path = collections.deque([start.value.value])
@@ -1066,6 +1072,7 @@ class Scope:
                         raise mylang_errors.InvalidSyntax("At line {}, near '@':invalid use of 'private'".format(checking_next.value.line_number))
                     self.token_list = iter([iter(checking_temp_line)]+[i for i in self.token_list])
                     self.seen_procedure_private = True
+
                 else:
 
                     start.value.isValid(checking_next.value)
@@ -1077,6 +1084,7 @@ class Scope:
                     self.private_variables.append(checking_next.value.value)
                     return_result = self.parse_assign(current_line)
                     self.variables[checking_next.value.value] = return_result
+                    self.scopes[start.value.value] = Scope(start.value.value, [], [], current_namespace = {i:getattr(return_result, i)() for i in ['upper', 'lower', 'capitalize', 'isupper', 'islower']} if isinstance(return_result, str) else {'increment':return_result+1, 'squared':pow(return_result, 2)}, builtins = mylang_builtins.builtin_methods[type(return_result).__name__])
                     print 'self.variables here', self.variables
                     print 'private variable name: {}'.format(checking_next.value.value)
             if start.type == 'GLOBAL':
@@ -1124,9 +1132,7 @@ class Scope:
                             else:
                                 procedure_namespace.append(new_namespace_line)
 
-                        if self.seen_procedure_private:
-                            self.private_procedures.append(possible_name.value.value)
-                            self.seen_procedure_private = False
+
                         self.scopes[possible_name.value.value] = Scope(possible_name.value.value, [], [], current_namespace = {'param_num':len(function_params)})
                         self.scopes[possible_name.value.value].scopes['signature'] = Scope('Signature', [], [], current_namespace = {'parameters':', '.join(i if not isinstance(i, list) else i[0] for i in function_params), 'types':', '.join('{}:{}'.format(i, None) if not isinstance(i, list) else "{}:{}".format(i[0], i[1]) for i in function_params)})
                         self.procedures[possible_name.value.value] = Procedure(possible_name.value.value, function_params, procedure_namespace, can_mutate = True, current_namespace = self.variables, return_type = return_type, is_private = self.seen_procedure_private)
@@ -1236,7 +1242,8 @@ class Scope:
 
                 self.scopes[possible_name.value.value] = Scope(possible_name.value.value, [], [], current_namespace = {'param_num':len(function_params)})
                 self.scopes[possible_name.value.value].scopes['signature'] = Scope('Signature', [], [], current_namespace = {'parameters':', '.join(i if not isinstance(i, list) else i[0] for i in function_params), 'types':', '.join('{}:{}'.format(i, None) if not isinstance(i, list) else "{}:{}".format(i[0], i[1]) for i in function_params)})
-                self.procedures[possible_name.value.value] = Procedure(possible_name.value.value, function_params, procedure_namespace, return_type = return_type)
+                self.procedures[possible_name.value.value] = Procedure(possible_name.value.value, function_params, procedure_namespace, return_type = return_type, is_private = self.seen_procedure_private)
+                self.seen_procedure_private = False
             if start.type == 'SCOPE':
                 params, name, flags = self.parse_scope(start, current_line, self.token_list)
 
@@ -1475,9 +1482,9 @@ class Scope:
     def __setitem__(self, val_name, value):
         self.variables[val_name] = value
     def __repr__(self):
-        return "{}<storing {} scope{}:({})({})".format(self.__class__.__name__, len(self.scopes), 's' if len(self.scopes) != 1 else '',', '.join(str(b) for a, b in self.scopes.items()), ', '.join('{} = {}'.format(a, b) for a, b in self.variables.items()))
+        return "{}<storing {} scope{}:({})({}), builtins:{}".format(self.__class__.__name__, len(self.scopes), 's' if len(self.scopes) != 1 else '',', '.join(str(b) for a, b in self.scopes.items()), ', '.join('{} = {}'.format(a, b) for a, b in self.variables.items()), ', '.join(self.builtins.keys()))
     def __str__(self):
-        return "{}<storing {} scope{}:({})({})".format(self.__class__.__name__, len(self.scopes), 's' if len(self.scopes) != 1 else '',', '.join(str(b) for a, b in self.scopes.items()), ', '.join('{} = {}'.format(a, b) for a, b in self.variables.items()))
+        return "{}<storing {} scope{}:({})({}), builtins: {}".format(self.__class__.__name__, len(self.scopes), 's' if len(self.scopes) != 1 else '',', '.join(str(b) for a, b in self.scopes.items()), ', '.join('{} = {}'.format(a, b) for a, b in self.variables.items()), ', '.join(self.builtins.keys()))
 
 class Scopes:
     def __init__(self):
@@ -1706,6 +1713,7 @@ class Parser:
                             while path:
                                 current_scope_selection = current_scope_selection[path[0]]
                                 path = path[1:]
+                            Scope.private_procedure_check(current_scope_selection.procedures[the_method])
                             to_return, namespace = current_scope_selection.procedures[the_method](*method_params)
                             base = self.scopes if start not in self.variables else self.variables
                             base[start].update_namespace(copy_path, namespace, start=start, end=copy_path[-1])
@@ -1809,7 +1817,7 @@ class Parser:
                     print 'TO STORE HERE', to_store
                     self.variables[start.value.value] = to_store
                     if any(isinstance(to_store, i) for i in [int, str]):
-                        self.scopes[start.value.value] = Scope(start.value.value, [], [], current_namespace = {i:getattr(to_store, i)() for i in ['upper', 'lower', 'capitalize', 'isupper', 'islower']} if isinstance(to_store, str) else {'increment':to_store+1, 'squared':pow(to_store, 2)})
+                        self.scopes[start.value.value] = Scope(start.value.value, [], [], current_namespace = {i:getattr(to_store, i)() for i in ['upper', 'lower', 'capitalize', 'isupper', 'islower']} if isinstance(to_store, str) else {'increment':to_store+1, 'squared':pow(to_store, 2)}, builtins = mylang_builtins.builtin_methods[type(to_store).__name__])
 
                 if checking.type == 'DOT':
                     path = collections.deque([start.value.value])
@@ -1855,6 +1863,7 @@ class Parser:
                                 while path:
                                     starting_base = starting_base[path[0]]
                                     path = path[1:]
+                                Scope.private_procedure_check(starting_base.procedures[current.value.value])
                                 starting_base.procedures[current.value.value](*current_method_params)
 
                                 seen_method_call = True
@@ -2237,6 +2246,22 @@ class Parser:
                                 while path:
                                     current_scope_1 = current_scope_1[path[0]]
                                     path = path[1:]
+
+                                try:
+                                    test = current_scope_1.procedures[temp_path.value.value]
+                                except:
+                                    if len(path_copy) == 1:
+                                        print (path_copy, temp_path.value.value, current_scope_1)
+                                        return self.scopes[path_copy[-1]].builtins[temp_path.value.value](path_copy[-1], current_scope_1)
+                                    scope_object = self.scopes if path_copy[0] not in self.variables else self.variables
+
+                                    while path_copy[:-1]:
+                                        scope_object = scope_object[path_copy[0]]
+                                        path_copy = path_copy[1:]
+
+                                    return scope_object.scopes[path_copy[-1]].builtins[temp_path.value.value](path_copy[-1], current_scope_1)
+
+                                Scope.private_procedure_check(current_scope_1.procedures[temp_path.value.value])
                                 to_return, new_scope_namespace = current_scope_1.procedures[temp_path.value.value]()
                                 self.scopes[path_copy[0]].update_namespace(path_copy, new_scope_namespace, start=path_copy[0], end=path_copy[-1])
                                 return to_return
@@ -2257,6 +2282,7 @@ class Parser:
                             while path:
                                 current_scope_1 = current_scope_1[path[0]]
                                 path = path[1:]
+                            Scope.private_procedure_check(current_scope_1.procedures[temp_path.value.value])
                             to_return, new_scope_namespace = current_scope_1.procedures[temp_path.value.value](*current_params_check)
                             if to_return == []:
                                 raise mylang_errors.InvalidProcedureReturnType("Procedure '{}' is void".format(temp_path.value.value))
@@ -2281,6 +2307,7 @@ class Parser:
                 last_path_val = None
                 if path[0] not in scope_result:
                     raise mylang_errors.AttributeNotFound("At line {}, near {}: variable '{}' has no attribute '{}'".format(current.value.line_number, current.value.value, current.value.value, path[1]))
+
                 while path:
                     val = path.popleft()
                     try:
@@ -2288,7 +2315,7 @@ class Parser:
                         last_path_val = val
                     except (IndexError, KeyError, TypeError, mylang_errors.AttributeNotFound):
                         try:
-                            scope_result = self.scopes[start_scope].scopes[last_path_val][val]
+                            scope_result = scope_result.scopes[val]
                         except (IndexError, KeyError, TypeError, mylang_errors.AttributeNotFound):
                             print 'start_scope, {}, last_path_val, {}, val, {}'.format(start_scope, last_path_val, val)
                             scope_result = self.variables[start_scope].scopes[last_path_val][val]
