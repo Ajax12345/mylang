@@ -278,9 +278,11 @@ class Int:
         self.value = value
         self.line_number = line_number
         self.rep = 'int'
-        self.valid_after = ['comma', 'cparen']
+        self.valid_after = ['comma', 'cparen', 'cbracket', 'obracket']
     def isValid(self, token):
+
         if token.rep not in self.valid_after:
+            print 'token.rep here', token.rep
             raise mylang_errors.IllegialPrecedence('At line number {line_number}, near {value}'.format(**self.__dict__))
         return True
     def __repr__(self):
@@ -365,8 +367,8 @@ class Privateprocedure:
 
 class Tokenize:
     token = collections.namedtuple('token', 'type, value')
-    grammar = r'\bprivate\b|@|\breturn\b|\baccumulate\b|\btransmute\b|\bprocedure\b|\bglobal\b|\bscope\b|"[a-zA-Z0-9_]+"|\d+|\b[a-zA-Z0-9_]+\b|\=|\b[a-zA-Z0-9]+\b|\-\>|\+|\*|\-|\/|\{|\}|\>|\<|,|\.|\(|\)|\:'
-    types = [('PRIVATEPROCEDURE', r'\bprivate\b'), ('PRIVATE', r'@'), ('ACCUMULATE', r'\baccumulate\b'), ('TRANSMUTE', r'\btransmute\b'), ('TORETURN', r'\-\>'), ('INT', r'\bint\b'), ('STRING', r'\bstring\b'), ('COLON', r':'), ('RETURN', r'\breturn\b'), ('PROCEDURE', r'\bprocedure\b'), ('GLOBAL', r'\bglobal\b'), ('SCOPE', r'\bscope\b'), ('STRING', r'"[a-zA-Z0-9_]+"'), ('DIGIT', r'\b\d+\b'), ('VARIABLE', r'\b[a-zA-Z0-9_]+\b'), ('ASSIGN', r'\='), ('PLUS', '\+'), ('STAR', r'\*'), ('BAR', r'\-'), ('FORWARDSLASH', '\/'), ('OBRACKET', r'\{'), ('CBRACKET', r'\}'), ('STARTARROW', '\<'), ('ENDARROW', '\>'), ('COMMA', ','), ('DOT', '\.'), ('OPAREN', '\('), ('CPAREN', '\)')]
+    grammar = r'\bprivate\b|@|\breturn\b|\baccumulate\b|\btransmute\b|\bprocedure\b|\bglobal\b|\bscope\b|"[a-zA-Z0-9_\s]+"|\d+|\b[a-zA-Z0-9_]+\b|\=|\b[a-zA-Z0-9]+\b|\-\>|\+|\*|\-|\/|\{|\}|\>|\<|,|\.|\(|\)|\:'
+    types = [('PRIVATEPROCEDURE', r'\bprivate\b'), ('PRIVATE', r'@'), ('ACCUMULATE', r'\baccumulate\b'), ('TRANSMUTE', r'\btransmute\b'), ('TORETURN', r'\-\>'), ('INT', r'\bint\b'), ('STRING', r'\bstring\b'), ('COLON', r':'), ('RETURN', r'\breturn\b'), ('PROCEDURE', r'\bprocedure\b'), ('GLOBAL', r'\bglobal\b'), ('SCOPE', r'\bscope\b'), ('STRING', r'"[a-zA-Z0-9_\s]+"'), ('DIGIT', r'\b\d+\b'), ('VARIABLE', r'\b[a-zA-Z0-9_]+\b'), ('ASSIGN', r'\='), ('PLUS', '\+'), ('STAR', r'\*'), ('BAR', r'\-'), ('FORWARDSLASH', '\/'), ('OBRACKET', r'\{'), ('CBRACKET', r'\}'), ('STARTARROW', '\<'), ('ENDARROW', '\>'), ('COMMA', ','), ('DOT', '\.'), ('OPAREN', '\('), ('CPAREN', '\)')]
     class_reps = {'STRING':String, 'DIGIT':Digit, 'VARIABLE':Variable, 'ASSIGN':Assign, 'PLUS':Plus, 'STAR':Star, 'BAR':Bar, 'FORWARDSLASH':Forwardslash, 'SCOPE':Scope, 'OBRACKET':OBracket, 'CBRACKET':CBracket, 'STARTARROW':Startarrow, 'ENDARROW':Endarrow, 'COMMA':Comma, 'DOT':Dot, 'OPAREN':OParen, 'CPAREN':CParen, 'GLOBAL':Global, 'PROCEDURE':Procedure, 'RETURN':Return, 'COLON':Colon, 'INT':Int, 'STRING':String, 'TORETURN':Toreturn, 'TRANSMUTE':Transmute, 'ACCUMULATE':Accumulate, 'PRIVATE':Private, 'PRIVATEPROCEDURE':Privateprocedure}
     def __init__(self, filename):
         self.file_data = [i.strip('\n') for i in open(filename)]
