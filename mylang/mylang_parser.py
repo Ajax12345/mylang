@@ -22,7 +22,11 @@ class Procedure:
         self.return_type = kwargs.get('return_type')
         self.name = name
         #print 'in constructor for procedure {name} with visibility of {is_private}'.format(**self.__dict__)
-        self.procedures = {}
+        self.procedures = Procedures()
+        if kwargs.get('current_namespace_procedures'):
+            print 'IN HERE WITH NEW PROCEDURES', kwargs.get('current_namespace_procedures')
+            self.procedures.update_procedures(kwargs.get('current_namespace_procedures'))
+        #self.procedures[self.name] =
         self.to_return = []
         self.token_list = iter(map(iter, namespace))
         self.params = parameters
@@ -225,7 +229,10 @@ class Procedure:
                         raise mylang_errors.ParameterSytnaxError("At line {}, near '{}': invalid parameter syntax".format(checking.value.line_number, checking.value.value))
                     checking.value.isValid(current_param.value)
                     if current_param.type == 'CPAREN':
-                        result, namespace = self.procedures[start.value.value]()
+                        if start.value.value == self.name:
+                            result, namespace = self()
+                        else:
+                            result, namespace = self.procedures[start.value.value]()
                         #check for truthiness of function __call__ returned values
 
                         if result:
@@ -241,8 +248,10 @@ class Procedure:
                             if not checking_last:
                                 break
                             current_line = iter([checking_last]+[i for i in current_line])
-
-                        result, namespace = self.procedures[start.value.value](*full_params)
+                        if start.value.value == self.name:
+                            result, namespace = self(*full_params)
+                        else:
+                            result, namespace = self.procedures[start.value.value](*full_params)
                         if result:
                             raise mylang_errors.InvalidProcedureReturn("At line {}, near '{}': procedure '{}' is not void".format(start.value.line_number, start.value.value, start.value.value))
                         if namespace:
@@ -326,7 +335,7 @@ class Procedure:
 
                         self.scopes[possible_name.value.value] = Scope(possible_name.value.value, [], [], current_namespace = {'param_num':len(function_params)})
                         self.scopes[possible_name.value.value].scopes['signature'] = Scope('Signature', [], [], current_namespace = {'parameters':', '.join(i if not isinstance(i, list) else i[0] for i in function_params), 'types':', '.join('{}:{}'.format(i, None) if not isinstance(i, list) else "{}:{}".format(i[0], i[1]) for i in function_params)})
-                        self.procedures[possible_name.value.value] = Procedure(possible_name.value.value, function_params, procedure_namespace, can_mutate = True, current_namespace = self.variables, return_type = return_type)
+                        self.procedures[possible_name.value.value] = Procedure(possible_name.value.value, function_params, procedure_namespace, can_mutate = True, current_namespace = self.variables, return_type = return_type, current_namespace_procedures = self.procedures)
                 if next_start.type == 'PROCEDURE':
                     possible_name = next(current_line, None)
                     self.possible_name = possible_name
@@ -368,7 +377,7 @@ class Procedure:
 
                     self.scopes[possible_name.value.value] = Scope(possible_name.value.value, [], [], current_namespace = {'param_num':len(function_params)})
                     self.scopes[possible_name.value.value].scopes['signature'] = Scope('Signature', [], [], current_namespace = {'parameters':', '.join(i if not isinstance(i, list) else i[0] for i in function_params), 'types':', '.join('{}:{}'.format(i, None) if not isinstance(i, list) else "{}:{}".format(i[0], i[1]) for i in function_params)})
-                    self.procedures[possible_name.value.value] = Procedure(possible_name.value.value, function_params, procedure_namespace, current_namespace = self.variables, return_type = return_type)
+                    self.procedures[possible_name.value.value] = Procedure(possible_name.value.value, function_params, procedure_namespace, current_namespace = self.variables, return_type = return_type, current_namespace_procedures = self.procedures)
                 if next_start.type == 'SCOPE':
                     params, name, flags = self.parse_scope(next_start, current_line, self.token_list)
 
@@ -431,7 +440,7 @@ class Procedure:
 
                 self.scopes[possible_name.value.value] = Scope(possible_name.value.value, [], [], current_namespace = {'param_num':len(function_params)})
                 self.scopes[possible_name.value.value].scopes['signature'] = Scope('Signature', [], [], current_namespace = {'parameters':', '.join(i if not isinstance(i, list) else i[0] for i in function_params), 'types':', '.join('{}:{}'.format(i, None) if not isinstance(i, list) else "{}:{}".format(i[0], i[1]) for i in function_params)})
-                self.procedures[possible_name.value.value] = Procedure(possible_name.value.value, function_params, procedure_namespace, return_type = return_type)
+                self.procedures[possible_name.value.value] = Procedure(possible_name.value.value, function_params, procedure_namespace, return_type = return_type, current_namespace_procedures = self.procedures)
             if start.type == 'SCOPE':
                 params, name, flags = self.parse_scope(start, current_line, self.token_list)
 
@@ -521,8 +530,22 @@ class Procedure:
                 return self.variables[current.value.value]
             current.value.isValid(test_final.value)
             if test_final.type == 'OPAREN':
+                test_second_line = next(line, None)
+                if not test_second_line:
+                    raise mylang_errors.InvalidSyntax("At line {}, near '{}': expecting a variable type or a close parenthesis ')'".format(test_final.value.line_number, test_final.value.value))
+                test_final.value.isValid(test_second_line.value)
+                if test_second_line.type == 'CPAREN':
+                    if current.value.value == self.name:
+                        to_return, namespace = self()
+                    else:
+                        to_return, namespace = self.procedures[current.value.value]()
+                    if namespace:
+                        self.variables.update(namespace)
+                    return to_return
+                line = iter([test_second_line]+[i for i in line])
                 #currently, here
-                if current.value.value in self.procedures:
+                if current.value.value in self.procedures or current.value.value == self.name:
+                    print 'IN HEREQQQQ with procedure name ', current.value.value
                     testing_next = next(line, None)
                     if not testing_next:
                         raise mylang_errors.InvalidParameterType("At line {}: invalid syntax".format(current.value.line_number))
@@ -535,9 +558,12 @@ class Procedure:
                         if not checking_next_val:
                             break
                         line = iter([checking_next_val]+[i for i in line])
-                    result, namespace = self.procedures[current.value.value](*function_params)
-                    if namespace:
-                        self.variables = namespace
+                    if current.value.value == self.name:
+                        result, namespace = self(*function_params)
+
+                    else:
+                        result, namespace = self.procedures[current.value.value](*function_params)
+
                     return result
                 current_params = []
                 while True:
@@ -602,7 +628,62 @@ class Procedure:
                         path.append(temp_path.value.value)
                         break
                     if temp_path.type == 'VARIABLE':
+                        if check.type == 'OPAREN':
+                            check_next_val = next(line, None)
+                            if not check_next_val:
+                                raise mylang_errors.InvalidParameterType("At line {}, near '{}': expecting ')'".format(check.value.line_number, check.value.value))
+                            if check_next_val.type == 'CPAREN':
+                                current_scope_1 = self.scopes if path[0] not in self.variables else self.variables
+                                path_copy = copy.deepcopy(list(path))
+                                path = list(path)
+                                while path:
+                                    current_scope_1 = current_scope_1[path[0]]
+                                    path = path[1:]
+
+                                try:
+                                    test = current_scope_1.procedures[temp_path.value.value]
+                                except:
+                                    if len(path_copy) == 1:
+                                        print (path_copy, temp_path.value.value, current_scope_1)
+                                        return self.scopes[path_copy[-1]].builtins[temp_path.value.value](path_copy[-1], current_scope_1)
+                                    scope_object = self.scopes if path_copy[0] not in self.variables else self.variables
+
+                                    while path_copy[:-1]:
+                                        scope_object = scope_object[path_copy[0]]
+                                        path_copy = path_copy[1:]
+
+                                    return scope_object.scopes[path_copy[-1]].builtins[temp_path.value.value](path_copy[-1], current_scope_1)
+
+                                Scope.private_procedure_check(current_scope_1.procedures[temp_path.value.value])
+                                to_return, new_scope_namespace = current_scope_1.procedures[temp_path.value.value]()
+                                self.scopes[path_copy[0]].update_namespace(path_copy, new_scope_namespace, start=path_copy[0], end=path_copy[-1])
+                                return to_return
+                            line = iter([check_next_val]+[i for i in line])
+                            current_params_check = []
+                            while True:
+                                result_here_1 = self.parse_expression(line)
+
+                                current_params_check.append(result_here_1)
+                                check_next_4 = next(line, None)
+                                if not check_next_4:
+                                    break
+
+                            #print 'current_params_check here for {}'.format(path[-1]), current_params_check
+                            current_scope_1 = self.scopes if path[0] not in self.variables else self.variables
+                            path_copy = copy.deepcopy(list(path))
+                            path = list(path)
+                            while path:
+                                current_scope_1 = current_scope_1[path[0]]
+                                path = path[1:]
+                            Scope.private_procedure_check(current_scope_1.procedures[temp_path.value.value])
+                            to_return, new_scope_namespace = current_scope_1.procedures[temp_path.value.value](*current_params_check)
+                            if to_return == []:
+                                raise mylang_errors.InvalidProcedureReturnType("Procedure '{}' is void".format(temp_path.value.value))
+                            self.scopes[path_copy[0]].update_namespace(path_copy, new_scope_namespace, start=path_copy[0], end=path_copy[-1])
+
+                            return to_return
                         path.append(temp_path.value.value)
+
                     if temp_path.type in operation_converters:
                         last_seen = temp_path
                         break
@@ -619,16 +700,31 @@ class Procedure:
                 last_path_val = None
                 if path[0] not in scope_result:
                     raise mylang_errors.AttributeNotFound("At line {}, near {}: variable '{}' has no attribute '{}'".format(current.value.line_number, current.value.value, current.value.value, path[1]))
+                store_last = []
+                string_last = []
                 while path:
                     val = path.popleft()
+
                     try:
-                        scope_result = scope_result[val]
-                        last_path_val = val
-                    except:
-                        try:
-                            scope_result = self.scopes[start_scope].scopes[last_path_val][val]
-                        except:
-                            scope_result = self.variables[start_scope].scopes[last_path_val][val]
+                        if val in scope_result:
+                            scope_result = scope_result[val]
+                            print 'scope_result for testing', scope_result
+                        else:
+                            if not path:
+                                if val in store_last[-2].scopes[string_last[-1]]:
+                                    print 'in here'
+                                    print 'val', val
+
+                                    scope_result = store_last[-2].scopes[string_last[-1]][val]
+                                else:
+                                    raise mylang_errors.AttributeNotFound("scope '{}' has no attribute '{}'".format(string_last[-1], val))
+                            else:
+                                scope_result = scope_result.scopes[val]
+                        store_last.append(scope_result)
+                        string_last.append(val)
+                    except (IndexError, KeyError, TypeError, mylang_errors.AttributeNotFound):
+
+                        pass
                 if last_seen:
                     try:
                         final_part = self.parse_assign(line)
@@ -690,6 +786,7 @@ class Procedure:
                 return current.value.value[1:-1] + (string.ascii_lowercase+string.ascii_uppercase)[52%returned_val] if isinstance(returned_val, int) else current.value.value[1:-1]+returned_val
             if test_final.type in operation_converters:
                 raise mylang_errors.IncompatableTypes("At line {}, cannot {} type 'string' to type '{}'".format(current.value.line_number, {'PLUS':'concatinate', 'BAR':'subtract', 'STAR':'multiply', 'FORWARDSLASH':'divide'}[test_final.type], type(returned_val).__name__))
+
     def __repr__(self):
         return '{}({})'.format(self.__class__.__name__, 'name: {}, params: {}, global: {}, transmute:{} '.format(self.name, len(self.params), ['No', 'Yes'][self.is_global], ['No', 'Yes'][self.can_mutate]))
     def __str__(self):
@@ -713,6 +810,8 @@ class Procedures:
         return self.procedure_list[name]
     def __setitem__(self, name, procedure_object):
         self.procedure_list[name] = procedure_object
+    def update_procedures(self, new_procedures):
+        self.procedure_list.update(new_procedures.procedure_list)
     def __contains__(self, name):
         return name in self.procedure_list
     def __len__(self):
@@ -1137,7 +1236,7 @@ class Scope:
 
                         self.scopes[possible_name.value.value] = Scope(possible_name.value.value, [], [], current_namespace = {'param_num':len(function_params)})
                         self.scopes[possible_name.value.value].scopes['signature'] = Scope('Signature', [], [], current_namespace = {'parameters':', '.join(i if not isinstance(i, list) else i[0] for i in function_params), 'types':', '.join('{}:{}'.format(i, None) if not isinstance(i, list) else "{}:{}".format(i[0], i[1]) for i in function_params)})
-                        self.procedures[possible_name.value.value] = Procedure(possible_name.value.value, function_params, procedure_namespace, can_mutate = True, current_namespace = self.variables, return_type = return_type, is_private = self.seen_procedure_private)
+                        self.procedures[possible_name.value.value] = Procedure(possible_name.value.value, function_params, procedure_namespace, can_mutate = True, current_namespace = self.variables, return_type = return_type, is_private = self.seen_procedure_private, current_namespace_procedures = self.procedures)
                         self.seen_procedure_private = False
                 if next_start.type == 'PROCEDURE':
                     possible_name = next(current_line, None)
@@ -1180,7 +1279,7 @@ class Scope:
 
                     self.scopes[possible_name.value.value] = Scope(possible_name.value.value, [], [], current_namespace = {'param_num':len(function_params)})
                     self.scopes[possible_name.value.value].scopes['signature'] = Scope('Signature', [], [], current_namespace = {'parameters':', '.join(i if not isinstance(i, list) else i[0] for i in function_params), 'types':', '.join('{}:{}'.format(i, None) if not isinstance(i, list) else "{}:{}".format(i[0], i[1]) for i in function_params)})
-                    self.procedures[possible_name.value.value] = Procedure(possible_name.value.value, function_params, procedure_namespace, current_namespace = self.variables, return_type = return_type, is_private = self.seen_procedure_private)
+                    self.procedures[possible_name.value.value] = Procedure(possible_name.value.value, function_params, procedure_namespace, current_namespace = self.variables, return_type = return_type, is_private = self.seen_procedure_private, current_namespace_procedures = self.procedures)
                     self.seen_procedure_private = False
                 if next_start.type == 'SCOPE':
                     params, name, flags = self.parse_scope(next_start, current_line, self.token_list)
@@ -1244,7 +1343,7 @@ class Scope:
 
                 self.scopes[possible_name.value.value] = Scope(possible_name.value.value, [], [], current_namespace = {'param_num':len(function_params)})
                 self.scopes[possible_name.value.value].scopes['signature'] = Scope('Signature', [], [], current_namespace = {'parameters':', '.join(i if not isinstance(i, list) else i[0] for i in function_params), 'types':', '.join('{}:{}'.format(i, None) if not isinstance(i, list) else "{}:{}".format(i[0], i[1]) for i in function_params)})
-                self.procedures[possible_name.value.value] = Procedure(possible_name.value.value, function_params, procedure_namespace, return_type = return_type, is_private = self.seen_procedure_private)
+                self.procedures[possible_name.value.value] = Procedure(possible_name.value.value, function_params, procedure_namespace, return_type = return_type, is_private = self.seen_procedure_private, current_namespace_procedures = self.procedures)
                 self.seen_procedure_private = False
             if start.type == 'SCOPE':
                 params, name, flags = self.parse_scope(start, current_line, self.token_list)
@@ -1932,7 +2031,7 @@ class Parser:
 
                         self.scopes[possible_name.value.value] = Scope(possible_name.value.value, [], [], current_namespace = {'param_num':len(function_params)})
                         self.scopes[possible_name.value.value].scopes['signature'] = Scope('Signature', [], [], current_namespace = {'parameters':', '.join(i if not isinstance(i, list) else i[0] for i in function_params), 'types':', '.join('{}:{}'.format(i, None) if not isinstance(i, list) else "{}:{}".format(i[0], i[1]) for i in function_params)})
-                        self.procedures[possible_name.value.value] = Procedure(possible_name.value.value, function_params, procedure_namespace, can_mutate = True, current_namespace = self.variables, return_type = return_type)
+                        self.procedures[possible_name.value.value] = Procedure(possible_name.value.value, function_params, procedure_namespace, can_mutate = True, current_namespace = self.variables, return_type = return_type, current_namespace_procedures = self.procedures)
                 if next_start.type == 'PROCEDURE':
                     possible_name = next(current_line, None)
                     self.possible_name = possible_name
@@ -1974,7 +2073,7 @@ class Parser:
 
                     self.scopes[possible_name.value.value] = Scope(possible_name.value.value, [], [], current_namespace = {'param_num':len(function_params)})
                     self.scopes[possible_name.value.value].scopes['signature'] = Scope('Signature', [], [], current_namespace = {'parameters':', '.join(i if not isinstance(i, list) else i[0] for i in function_params), 'types':', '.join('{}:{}'.format(i, None) if not isinstance(i, list) else "{}:{}".format(i[0], i[1]) for i in function_params)})
-                    self.procedures[possible_name.value.value] = Procedure(possible_name.value.value, function_params, procedure_namespace, current_namespace = self.variables, return_type = return_type)
+                    self.procedures[possible_name.value.value] = Procedure(possible_name.value.value, function_params, procedure_namespace, current_namespace = self.variables, return_type = return_type, current_namespace_procedures = self.procedures)
                 if next_start.type == 'SCOPE':
                     params, name, flags = self.parse_scope(next_start, current_line, self.token_list)
 
@@ -2053,7 +2152,7 @@ class Parser:
 
                 self.scopes[possible_name.value.value] = Scope(possible_name.value.value, [], [], current_namespace = {'param_num':len(function_params)})
                 self.scopes[possible_name.value.value].scopes['signature'] = Scope('Signature', [], [], current_namespace = {'parameters':', '.join(i if not isinstance(i, list) else i[0] for i in function_params), 'types':', '.join('{}:{}'.format(i, None) if not isinstance(i, list) else "{}:{}".format(i[0], i[1]) for i in function_params)})
-                self.procedures[possible_name.value.value] = Procedure(possible_name.value.value, function_params, procedure_namespace, return_type= return_type)
+                self.procedures[possible_name.value.value] = Procedure(possible_name.value.value, function_params, procedure_namespace, return_type= return_type, current_namespace_procedures = self.procedures)
             if start.type == 'SCOPE':
                 params, name, flags = self.parse_scope(start, current_line, self.token_list)
 
