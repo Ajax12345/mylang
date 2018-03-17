@@ -43,3 +43,31 @@ class NoProcedureDeclared(Exception):
 
 class InvalidParameterType(Exception):
     pass
+
+class InvalidProcedureReturn(Exception):
+    pass
+
+class InvalidAttributeCall(Exception):
+    pass
+
+class InternalError(Exception):
+    pass
+
+class InvalidSyntax(Exception):
+    pass
+
+class PrivateVariableDeclaration(Exception):
+    pass
+
+class PrivateProcedureDeclaration(Exception):
+    pass
+
+class IndexOutOfBoundsError(Exception):
+    pass
+
+
+class CollectionDoesNotContainItem(Exception):
+    pass
+
+class ObjectNotDeclared(Exception):
+    pass
