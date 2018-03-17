@@ -749,14 +749,30 @@ class Procedure:
                                 check_next_4 = next(line, None)
                                 if not check_next_4:
                                     break
+                                line = iter([check_next_4]+[i for i in line])
 
                             #print 'current_params_check here for {}'.format(path[-1]), current_params_check
+
                             current_scope_1 = self.scopes if path[0] not in self.variables else self.variables
                             path_copy = copy.deepcopy(list(path))
                             path = list(path)
                             while path:
                                 current_scope_1 = current_scope_1[path[0]]
                                 path = path[1:]
+
+                            try:
+                                test = current_scope_1.procedures[temp_path.value.value]
+                            except:
+                                if len(path_copy) == 1:
+                                    print (path_copy, temp_path.value.value, current_scope_1)
+                                    return self.scopes[path_copy[-1]].builtins[temp_path.value.value](path_copy[-1], current_scope_1, *current_params_check)
+                                scope_object = self.scopes if path_copy[0] not in self.variables else self.variables
+
+                                while path_copy[:-1]:
+                                    scope_object = scope_object[path_copy[0]]
+                                    path_copy = path_copy[1:]
+
+                                return scope_object.scopes[path_copy[-1]].builtins[temp_path.value.value](path_copy[-1], current_scope_1)
                             Scope.private_procedure_check(current_scope_1.procedures[temp_path.value.value])
                             to_return, new_scope_namespace = current_scope_1.procedures[temp_path.value.value](*current_params_check)
                             if to_return == []:
@@ -1593,6 +1609,7 @@ class Scope:
                     return to_return
                 return self.scopes[current.value.value](*full_params_for_object)
             if test_final.type == 'DOT':
+
                 path = collections.deque([current.value.value])
                 end_line = False
                 last_seen = None
@@ -1611,10 +1628,79 @@ class Scope:
                         path.append(temp_path.value.value)
                         break
                     if temp_path.type == 'VARIABLE':
+                        if check.type == 'OPAREN':
+                            check_next_val = next(line, None)
+                            if not check_next_val:
+                                raise mylang_errors.InvalidParameterType("At line {}, near '{}': expecting ')'".format(check.value.line_number, check.value.value))
+                            if check_next_val.type == 'CPAREN':
+                                current_scope_1 = self.scopes if path[0] not in self.variables else self.variables
+                                path_copy = copy.deepcopy(list(path))
+                                path = list(path)
+                                while path:
+                                    current_scope_1 = current_scope_1[path[0]]
+                                    path = path[1:]
+
+                                try:
+                                    test = current_scope_1.procedures[temp_path.value.value]
+                                except:
+                                    if len(path_copy) == 1:
+                                        print (path_copy, temp_path.value.value, current_scope_1)
+                                        return self.scopes[path_copy[-1]].builtins[temp_path.value.value](path_copy[-1], current_scope_1)
+                                    scope_object = self.scopes if path_copy[0] not in self.variables else self.variables
+
+                                    while path_copy[:-1]:
+                                        scope_object = scope_object[path_copy[0]]
+                                        path_copy = path_copy[1:]
+
+                                    return scope_object.scopes[path_copy[-1]].builtins[temp_path.value.value](path_copy[-1], current_scope_1)
+
+                                Scope.private_procedure_check(current_scope_1.procedures[temp_path.value.value])
+                                to_return, new_scope_namespace = current_scope_1.procedures[temp_path.value.value]()
+                                self.scopes[path_copy[0]].update_namespace(path_copy, new_scope_namespace, start=path_copy[0], end=path_copy[-1])
+                                return to_return
+                            line = iter([check_next_val]+[i for i in line])
+                            current_params_check = []
+                            while True:
+                                result_here_1 = self.parse_expression(line)
+                                print 'result_here_1', result_here_1
+                                current_params_check.append(result_here_1)
+                                check_next_4 = next(line, None)
+                                if not check_next_4:
+                                    break
+                                line = iter([check_next_4]+[i for i in line])
+                            #print 'current_params_check', current_params_check
+                            #print 'current_params_check here for {}'.format(path[-1]), current_params_check
+                            current_scope_1 = self.scopes if path[0] not in self.variables else self.variables
+                            path_copy = copy.deepcopy(list(path))
+                            path = list(path)
+                            while path:
+                                current_scope_1 = current_scope_1[path[0]]
+                                path = path[1:]
+                            try:
+                                test = current_scope_1.procedures[temp_path.value.value]
+                            except:
+                                #print 'path_copy[0]', path_copy
+                                scope_object = self.scopes
+
+                                while path_copy[:-1]:
+                                    scope_object = scope_object[path_copy[0]]
+                                    path_copy = path_copy[1:]
+                                #print 'scope_object here', scope_object
+
+                                return scope_object[path_copy[-1]].builtins[temp_path.value.value](path_copy[-1], current_scope_1, *current_params_check)
+                            Scope.private_procedure_check(current_scope_1.procedures[temp_path.value.value])
+                            to_return, new_scope_namespace = current_scope_1.procedures[temp_path.value.value](*current_params_check)
+                            if to_return == []:
+                                raise mylang_errors.InvalidProcedureReturnType("Procedure '{}' is void".format(temp_path.value.value))
+                            self.scopes[path_copy[0]].update_namespace(path_copy, new_scope_namespace, start=path_copy[0], end=path_copy[-1])
+
+                            return to_return
                         path.append(temp_path.value.value)
+
                     if temp_path.type in operation_converters:
                         last_seen = temp_path
                         break
+
 
                 flag = False
                 try:
@@ -2050,7 +2136,7 @@ class Parser:
                     print 'TO STORE HERE', to_store
                     self.variables[start.value.value] = to_store
                     if any(isinstance(to_store, i) for i in [int, str]):
-                        self.scopes[start.value.value] = Scope(start.value.value, [], [], current_namespace = {i:getattr(to_store, i)() for i in ['upper', 'lower', 'capitalize', 'isupper', 'islower']} if isinstance(to_store, str) else {'increment':to_store+1, 'squared':pow(to_store, 2)}, builtins = mylang_builtins.builtin_methods.get(type(to_store).__name__, {}))
+                        self.scopes[start.value.value] = Scope(start.value.value, [], [], current_namespace = dict([(i, getattr(to_store, i)()) for i in ['upper', 'lower', 'capitalize', 'isupper', 'islower']]+[('type', type(to_store).__name__)]) if isinstance(to_store, str) else {'increment':to_store+1, 'squared':pow(to_store, 2)}, builtins = mylang_builtins.builtin_methods.get(type(to_store).__name__, {}))
 
                 if checking.type == 'DOT':
                     path = collections.deque([start.value.value])
