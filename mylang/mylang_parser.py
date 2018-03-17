@@ -11,6 +11,7 @@ import itertools
 import trace_parser
 import mylang_wrappers
 import mylang_builtins
+import os
 #IDEA: conda programming language!
 
 class Procedure:
@@ -1715,6 +1716,11 @@ class Scopes:
     def __setitem__(self, name, value):
         self.scopes[name] = value
         self.__scope_count__ += 1
+    def __add__(self, new_scopes):
+        self.scopes.update(new_scopes.scopes)
+        final_scope = Scopes()
+        final_scope.scopes = self.scopes
+        return final_scope
     def __getitem__(self, name):
         if name in self.__dict__:
             return self.__dict__[name]
@@ -1999,6 +2005,12 @@ class Parser:
             current_line, self.current_line_on = itertools.tee(current_line)
 
             start = next(current_line)
+            if start.type == 'IMPORT':
+                file_path, flag = mylang_builtins.get_file_path(current_line)
+                parsed_file = Parser(mylang_tokenizer.Tokenize(file_path).tokenized_data)
+                self.variables.update(parsed_file.variables)
+                self.scopes = self.scopes+parsed_file.scopes
+                self.procedures.update_procedures(parsed_file.procedures)
             if start.type == 'VARIABLE':
                 checking = next(current_line)
                 start.value.isValid(checking.value)
@@ -2591,6 +2603,8 @@ class Parser:
             '''
             if test_final.type in operation_converters:
                 returned_val = self.parse_assign(line)
+                if type(returned_val) in [int, float] and type(self.variables[current.value.value]) in [int, float]:
+                    return operation_converters[test_final.type](self.variables[current.value.value], returned_val)
                 if type(returned_val) != type(self.variables[current.value.value]):
                     raise mylang_errors.IncompatableTypes("At line {}, near {}, cannot {} variable of type '{}' to type '{}'".format(current.value.line_number, current.value.value, {'PLUS':'concatinate', 'BAR':'subtract', 'STAR':'multiply', 'FORWARDSLASH':'divide'}[test_final.type], type(self.variables[current.value.value]).__name__, type(returned_val).__name__))
                 return operation_converters[test_final.type](self.variables[current.value.value], returned_val)
@@ -2621,7 +2635,8 @@ class Parser:
                     return operation_converters[operator.type](int(current.value.value)*int(second.value.value), returned_val)
                 returned_val = self.parse_assign(line)
 
-                if type(returned_val) != type(int(current.value.value)):
+
+                if type(returned_val) not in [int, float]:
                     raise mylang_errors.IncompatableTypes("At line {}, near {}, cannot {} variable of type 'INT' to type '{}'".format(current.value.line_number, current.value.value, {'PLUS':'concatinate', 'BAR':'subtract', 'STAR':'multiply', 'FORWARDSLASH':'divide'}[test_final.type], type(returned_val).__name__))
                 return operation_converters[test_final.type](int(current.value.value), returned_val)
         if current.type == 'STRING':
