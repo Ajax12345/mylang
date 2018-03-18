@@ -2,7 +2,7 @@ import mylang_tokenizer
 import collections
 import mylang_errors
 import string
-from mylang_config import config
+from mylang_config import config, ImportAll, ObjectifyImport
 import mylang_warnings
 import functools
 import copy
@@ -11,6 +11,7 @@ import itertools
 import trace_parser
 import mylang_wrappers
 import mylang_builtins
+import re
 import os
 #IDEA: conda programming language!
 
@@ -343,7 +344,7 @@ class Procedure:
                     #print 'To store here,', to_store, start.value.value
                     self.variables[start.value.value] = to_store
                     if any(isinstance(to_store, i) for i in [int, str]):
-                        self.scopes[start.value.value] = Scope(start.value.value, [], [], current_namespace = {i:getattr(to_store, i)() for i in ['upper', 'lower', 'capitalize', 'isupper', 'islower']} if isinstance(to_store, str) else {'increment':to_store+1, 'squared':pow(to_store, 2)}, builtins = mylang_builtins.builtin_methods[type(to_store).__name__])
+                        self.scopes[start.value.value] = Scope(start.value.value, [], [], current_namespace = dict([(i, getattr(to_store, i)()) for i in ['upper', 'lower', 'capitalize', 'isupper', 'islower']]+[('type', type(to_store).__name__)]) if isinstance(to_store, str) else dict([('increment', to_store+1), ('squared', pow(to_store, 2))]+[('type', 'int')]) if isinstance(to_store, int) else {'type':type(to_store).__name__}, builtins = mylang_builtins.builtin_methods[type(to_store).__name__])
 
 
                 if checking.type == 'DOT':
@@ -1290,7 +1291,7 @@ class Scope:
                     print 'storing string?', to_store, start.value.value
                     self.variables[start.value.value] = to_store
                     if any(isinstance(to_store, i) for i in [int, str]):
-                        self.scopes[start.value.value] = Scope(start.value.value, [], [], current_namespace = {i:getattr(to_store, i)() for i in ['upper', 'lower', 'capitalize', 'isupper', 'islower']} if isinstance(to_store, str) else {'increment':to_store+1, 'squared':pow(to_store, 2)}, builtins = mylang_builtins.builtin_methods[type(to_store).__name__])
+                        self.scopes[start.value.value] = Scope(start.value.value, [], [], current_namespace = dict([(i, getattr(to_store, i)()) for i in ['upper', 'lower', 'capitalize', 'isupper', 'islower']]+[('type', 'str')]) if isinstance(to_store, str) else dict([('increment', to_store+1), ('squared', pow(to_store, 2))]) if isinstance(to_store, int) else {'type':type(to_store).__name__}, builtins = mylang_builtins.builtin_methods[type(to_store).__name__])
 
                 if checking.type == 'DOT':
                     path = collections.deque([start.value.value])
@@ -1337,7 +1338,7 @@ class Scope:
                     self.private_variables.append(checking_next.value.value)
                     return_result = self.parse_assign(current_line)
                     self.variables[checking_next.value.value] = return_result
-                    self.scopes[start.value.value] = Scope(start.value.value, [], [], current_namespace = {i:getattr(return_result, i)() for i in ['upper', 'lower', 'capitalize', 'isupper', 'islower']} if isinstance(return_result, str) else {} if type(return_result) not in [int, str] else {'increment':return_result+1, 'squared':pow(return_result, 2)}, builtins = mylang_builtins.builtin_methods[type(return_result).__name__] if type(return_result).__name__ in mylang_builtins.builtin_methods else {})
+                    self.scopes[start.value.value] = Scope(start.value.value, [], [], current_namespace = dict([(i, getattr(return_result, i)()) for i in ['upper', 'lower', 'capitalize', 'isupper', 'islower']]+[('type', 'str')]) if isinstance(return_result, str) else dict([('increment', return_result+1), ('squared', pow(return_result, 2)), ('type', 'int')]) if isinstance(return_result, int) else {'type':type(return_result).__name__}, builtins = mylang_builtins.builtin_methods[type(return_result).__name__] if type(return_result).__name__ in mylang_builtins.builtin_methods else {})
                     print 'self.variables here', self.variables
                     print 'private variable name: {}'.format(checking_next.value.value)
             if start.type == 'GLOBAL':
@@ -1731,9 +1732,11 @@ class Scope:
             '''
             if test_final.type in operation_converters:
                 returned_val = self.parse_assign(line)
+                if type(returned_val) in [int, float] and type(self.variables[current.value.value]) in [int, float]:
+                    return operation_converters[test_final.type](self.variables[current.value.value], returned_val)
                 if type(returned_val) != type(self.variables[current.value.value]):
                     raise mylang_errors.IncompatableTypes("At line {}, near {}, cannot {} variable of type '{}' to type '{}'".format(current.value.line_number, current.value.value, {'PLUS':'concatinate', 'BAR':'subtract', 'STAR':'multiply', 'FORWARDSLASH':'divide'}[test_final.type], type(self.variables[current.value.value]).__name__, type(returned_val).__name__))
-                return operation_converters[test_final.type](self.variables[current.value.value], returned_val)
+
         if current.type == 'DIGIT':
             test_final = next(line, None)
             if not test_final:
@@ -1749,12 +1752,14 @@ class Scope:
             if test_final.type in operation_converters:
                 if test_final.type == 'STAR':
                     second = next(line, None)
-
-                    if second.type != 'DIGIT':
+                    print 'SECOND HERE', second
+                    if second.type != 'DIGIT' and second.type != 'VARIABLE':
 
                         raise mylang_errors.IncompatableTypes("At line {}, cannot multiply type 'INT' to type {}".format(second.value.line_number, type(second.value.value).__name__))
                     operator = next(line, None)
                     if not operator:
+                        if second.type == 'VARIABLE':
+                            return self.variables[second.value.value]*int(current.value.value)
                         return int(second.value.value)*int(current.value.value)
                     returned_val = self.parse_assign(line)
 
@@ -2094,9 +2099,16 @@ class Parser:
             if start.type == 'IMPORT':
                 file_path, flag = mylang_builtins.get_file_path(current_line)
                 parsed_file = Parser(mylang_tokenizer.Tokenize(file_path).tokenized_data)
-                self.variables.update(parsed_file.variables)
-                self.scopes = self.scopes+parsed_file.scopes
-                self.procedures.update_procedures(parsed_file.procedures)
+                if flag == ImportAll:
+
+                    self.variables.update(parsed_file.variables)
+                    self.scopes = self.scopes+parsed_file.scopes
+                    self.procedures.update_procedures(parsed_file.procedures)
+                else:
+
+                    self.scopes[re.split('[/\.]', file_path)[-2]] = Scope(re.split('[/\.]', file_path)[-2], [], [], current_namespace = parsed_file.variables)
+                    self.scopes[re.split('[/\.]', file_path)[-2]].scopes = parsed_file.scopes
+                    self.scopes[re.split('[/\.]', file_path)[-2]].procedures.update_procedures(parsed_file.procedures)
             if start.type == 'VARIABLE':
                 checking = next(current_line)
                 start.value.isValid(checking.value)
@@ -2136,7 +2148,7 @@ class Parser:
                     print 'TO STORE HERE', to_store
                     self.variables[start.value.value] = to_store
                     if any(isinstance(to_store, i) for i in [int, str]):
-                        self.scopes[start.value.value] = Scope(start.value.value, [], [], current_namespace = dict([(i, getattr(to_store, i)()) for i in ['upper', 'lower', 'capitalize', 'isupper', 'islower']]+[('type', type(to_store).__name__)]) if isinstance(to_store, str) else {'increment':to_store+1, 'squared':pow(to_store, 2)}, builtins = mylang_builtins.builtin_methods.get(type(to_store).__name__, {}))
+                        self.scopes[start.value.value] = Scope(start.value.value, [], [], current_namespace = dict([(i, getattr(to_store, i)()) for i in ['upper', 'lower', 'capitalize', 'isupper', 'islower']]+[('type', type(to_store).__name__)]) if isinstance(to_store, str) else dict([('increment', to_store+1), ('squared', pow(to_store, 2)), ('type', type(to_store).__name__)]) if isinstance(to_store, int) else {'type':type(to_store).__name__}, builtins = mylang_builtins.builtin_methods.get(type(to_store).__name__, {}))
 
                 if checking.type == 'DOT':
                     path = collections.deque([start.value.value])
