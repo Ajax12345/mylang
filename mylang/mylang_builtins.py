@@ -110,6 +110,8 @@ def get_file_path(path, current = os.getcwd().split('/')[1:]):
         check_test = next(path, None)
         if not check_test:
             return '/{}'.format('/'.join(current+["{}.txt".format(check_next.value.value)])), mylang_config.ObjectifyImport
+        if check_test.type == 'STAR':
+            return '/{}'.format('/'.join(current+["{}.txt".format(check_next.value.value)])), mylang_config.ImportAll
         return get_file_path(path, current = current+[check_next.value.value])
     if check_next.type == 'STAR':
         return '/{}'.format('/'.join(current+["{}.txt".format(check_next.value.value)])), mylang_config.ImportAll
