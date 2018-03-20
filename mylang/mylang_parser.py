@@ -42,6 +42,11 @@ class ArrayList:
         self.contents.extend(arraylist_object.contents)
     def extendFront(self, arraylist_object):
         self.contents = arraylist_object.contents + self.contents
+    def __delitem__(self, val):
+        del self.contents[val]
+
+    def remove_val_at(self, val):
+        self.contents = [i for i in self.contents if i != val]
     @property
     def reverse_contents(self):
         return ArrayList([], filled=self.contents[::-1])
@@ -2451,7 +2456,7 @@ class Parser:
                                 try:
 
                                     builtin_procedure = mylang_builtins.builtin_methods[getattr(starting_base, 'rep', type(starting_base).__name__)]
-
+                                    print 'builtin_procedure here', builtin_procedure
                                 except (KeyError, IndexError):
                                     pass
 
