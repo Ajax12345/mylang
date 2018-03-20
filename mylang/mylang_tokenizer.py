@@ -6,7 +6,7 @@ class Variable:
         self.line_number = line_number
         self.value = value
         self.rep = 'variable'
-        self.valid_after = ['plus', 'larrow', 'rarrow', 'equals', 'comma', 'assign', 'bar', 'star', 'forwardslash', 'obracket', 'startarrow', 'endarrow', 'dot', 'oparen', 'cparen', 'colon']
+        self.valid_after = ['plus', 'larrow', 'rarrow', 'equals', 'comma', 'assign', 'bar', 'star', 'forwardslash', 'obracket', 'startarrow', 'endarrow', 'dot', 'oparen', 'cparen', 'colon', 'cbracket']
     def isValid(self, token):
         print('offending', token.rep)
         if token.rep not in self.valid_after:
@@ -19,7 +19,7 @@ class Digit:
         self.line_number = line_number
         self.value = value
         self.rep = 'digit'
-        self.valid_after = ['plus', 'larrow', 'rarrow', 'equals', 'comma', 'bar', 'star', 'forwardslash', 'cparen']
+        self.valid_after = ['plus', 'larrow', 'rarrow', 'equals', 'comma', 'bar', 'star', 'forwardslash', 'cparen', 'cbracket']
     def __repr__(self):
         return "{}({})".format(self.__class__.__name__, "value = '{}'".format(self.value))
     def isValid(self, token):
@@ -31,7 +31,7 @@ class String:
         self.line_number = line_number
         self.value = value
         self.rep = 'string'
-        self.valid_after = ['plus', 'larrow', 'rarrow', 'equals', 'comma']
+        self.valid_after = ['plus', 'larrow', 'rarrow', 'equals', 'comma', 'cbracket']
     def isValid(self, token):
 
         if token.rep not in self.valid_after:
@@ -44,7 +44,7 @@ class Assign:
         self.line_number = line_number
         self.value = value
         self.rep = 'assign'
-        self.valid_after = ['variable', 'larrow', 'rarrow', 'equals', 'string', 'digit']
+        self.valid_after = ['variable', 'larrow', 'rarrow', 'equals', 'string', 'digit', 'OBRACKET']
     def isValid(self, token):
         if token.rep not in self.valid_after:
             raise mylang_errors.IllegialPrecedence('At line number {line_number}, near {value}'.format(**self.__dict__))
@@ -266,7 +266,7 @@ class Colon:
         self.value = value
         self.line_number = line_number
         self.rep = 'colon'
-        self.valid_after = ['variable', 'int', 'string', 'bool']
+        self.valid_after = ['variable', 'int', 'string', 'bool', 'arraylist']
     def isValid(self, token):
         if token.rep not in self.valid_after:
             raise mylang_errors.IllegialPrecedence('At line number {line_number}, near {value}'.format(**self.__dict__))
@@ -304,7 +304,7 @@ class Toreturn:
         self.value = value
         self.line_number = line_number
         self.rep = 'toreturn'
-        self.valid_after = ['INT', 'STRING']
+        self.valid_after = ['INT', 'STRING', 'arraylist']
     def isValid(self, token):
         if token.rep not in self.valid_after:
             raise mylang_errors.IllegialPrecedence('At line number {line_number}, near {value}'.format(**self.__dict__))
@@ -388,16 +388,28 @@ class Import:
             raise mylang_errors.IllegialPrecedence('At line number {line_number}, near {value}'.format(**self.__dict__))
     def __repr__(self):
         return "{}({})".format(self.__class__.__name__, "value = '{}'".format(self.value))
+class ArrayList:
+    def __init__(self, value, line_number):
+        self.value = value
+        self.line_number = line_number
+        self.rep = self.__class__.__name__.lower()
+        self.valid_after = ['comma', 'obracket', 'cparen']
+    def isValid(self, token):
+        print 'token here', token
+        if token.rep not in self.valid_after:
+            raise mylang_errors.IllegialPrecedence('At line number {line_number}, near {value}'.format(**self.__dict__))
+    def __repr__(self):
+        return "{}({})".format(self.__class__.__name__, "value = '{}'".format(self.value))
 
 class Tokenize:
     token = collections.namedtuple('token', 'type, value')
-    grammar = r'\bimport\b|\bprivate\b|@|\breturn\b|\baccumulate\b|\btransmute\b|\bprocedure\b|\bglobal\b|\bscope\b|"[a-zA-Z0-9_\s]+"|\d+|\b[a-zA-Z0-9_]+\b|\=|\b[a-zA-Z0-9]+\b|\-\>|\+|\*|\-|\/|\{|\}|\>|\<|,|\.|\(|\)|\:'
-    types = [('IMPORT', r'\bimport\b'), ('PRIVATEPROCEDURE', r'\bprivate\b'), ('PRIVATE', r'@'), ('ACCUMULATE', r'\baccumulate\b'), ('TRANSMUTE', r'\btransmute\b'), ('TORETURN', r'\-\>'), ('INT', r'\bint\b'), ('STRING', r'\bstring\b'), ('BOOL', r'\bbool\b'), ('COLON', r':'), ('RETURN', r'\breturn\b'), ('PROCEDURE', r'\bprocedure\b'), ('GLOBAL', r'\bglobal\b'), ('SCOPE', r'\bscope\b'), ('STRING', r'"[a-zA-Z0-9_\s]+"'), ('DIGIT', r'\b\d+\b'), ('VARIABLE', r'\b[a-zA-Z0-9_]+\b'), ('ASSIGN', r'\='), ('PLUS', '\+'), ('STAR', r'\*'), ('BAR', r'\-'), ('FORWARDSLASH', '\/'), ('OBRACKET', r'\{'), ('CBRACKET', r'\}'), ('STARTARROW', '\<'), ('ENDARROW', '\>'), ('COMMA', ','), ('DOT', '\.'), ('OPAREN', '\('), ('CPAREN', '\)')]
-    class_reps = {'STRING':String, 'DIGIT':Digit, 'VARIABLE':Variable, 'ASSIGN':Assign, 'PLUS':Plus, 'STAR':Star, 'BAR':Bar, 'FORWARDSLASH':Forwardslash, 'SCOPE':Scope, 'OBRACKET':OBracket, 'CBRACKET':CBracket, 'STARTARROW':Startarrow, 'ENDARROW':Endarrow, 'COMMA':Comma, 'DOT':Dot, 'OPAREN':OParen, 'CPAREN':CParen, 'GLOBAL':Global, 'PROCEDURE':Procedure, 'RETURN':Return, 'COLON':Colon, 'INT':Int, 'STRING':String, 'TORETURN':Toreturn, 'TRANSMUTE':Transmute, 'ACCUMULATE':Accumulate, 'PRIVATE':Private, 'PRIVATEPROCEDURE':Privateprocedure, 'BOOL':Bool, 'IMPORT':Import}
+    grammar = r'\bArrayList\b|\bimport\b|\bprivate\b|@|\breturn\b|\baccumulate\b|\btransmute\b|\bprocedure\b|\bglobal\b|\bscope\b|"[a-zA-Z0-9_\s]+"|\d+|\b[a-zA-Z0-9_]+\b|\=|\b[a-zA-Z0-9]+\b|\-\>|\+|\*|\-|\/|\{|\}|\>|\<|,|\.|\(|\)|\:'
+    types = [('ARRAYLIST', r'\bArrayList\b'), ('IMPORT', r'\bimport\b'), ('PRIVATEPROCEDURE', r'\bprivate\b'), ('PRIVATE', r'@'), ('ACCUMULATE', r'\baccumulate\b'), ('TRANSMUTE', r'\btransmute\b'), ('TORETURN', r'\-\>'), ('INT', r'\bint\b'), ('STRING', r'\bstring\b'), ('BOOL', r'\bbool\b'), ('COLON', r':'), ('RETURN', r'\breturn\b'), ('PROCEDURE', r'\bprocedure\b'), ('GLOBAL', r'\bglobal\b'), ('SCOPE', r'\bscope\b'), ('STRING', r'"[a-zA-Z0-9_\s]+"'), ('DIGIT', r'\b\d+\b'), ('VARIABLE', r'\b[a-zA-Z0-9_]+\b'), ('ASSIGN', r'\='), ('PLUS', '\+'), ('STAR', r'\*'), ('BAR', r'\-'), ('FORWARDSLASH', '\/'), ('OBRACKET', r'\{'), ('CBRACKET', r'\}'), ('STARTARROW', '\<'), ('ENDARROW', '\>'), ('COMMA', ','), ('DOT', '\.'), ('OPAREN', '\('), ('CPAREN', '\)')]
+    class_reps = {'STRING':String, 'DIGIT':Digit, 'VARIABLE':Variable, 'ASSIGN':Assign, 'PLUS':Plus, 'STAR':Star, 'BAR':Bar, 'FORWARDSLASH':Forwardslash, 'SCOPE':Scope, 'OBRACKET':OBracket, 'CBRACKET':CBracket, 'STARTARROW':Startarrow, 'ENDARROW':Endarrow, 'COMMA':Comma, 'DOT':Dot, 'OPAREN':OParen, 'CPAREN':CParen, 'GLOBAL':Global, 'PROCEDURE':Procedure, 'RETURN':Return, 'COLON':Colon, 'INT':Int, 'STRING':String, 'TORETURN':Toreturn, 'TRANSMUTE':Transmute, 'ACCUMULATE':Accumulate, 'PRIVATE':Private, 'PRIVATEPROCEDURE':Privateprocedure, 'BOOL':Bool, 'IMPORT':Import, 'ARRAYLIST':ArrayList}
     def __init__(self, filename):
         self.file_data = [i.strip('\n') for i in open(filename)]
         self.tokenized_data = filter(None, list(Tokenize.parse_tokens(self.file_data)))
-        
+        print self.tokenized_data
     @classmethod
     def parse_tokens(cls, file_data):
         for line_num, line in enumerate(file_data, start = 1):
