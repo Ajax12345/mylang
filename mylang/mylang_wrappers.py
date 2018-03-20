@@ -54,11 +54,11 @@ def verify_passed_types(f):
         if args:
             for a, b in zip(args, cls.params):
                 if isinstance(b, list):
-                    if type(a) != {'int':int, 'string':str, 'str':str}[b[-1]]:
-                        raise mylang_errors.InvalidParameterType("In procedure '{}': parameter '{}' requires a value of type '{}', recieved '{}'".format(cls.name, b[0], {'int':int, 'string':str}[b[-1]].__name__, type(a).__name__))
+                    if getattr(a, 'rep', type(a).__name__) != b[-1]:
+                        raise mylang_errors.InvalidParameterType("In procedure '{}': parameter '{}' requires a value of type '{}', recieved '{}'".format(cls.name, b[0], {'int':int, 'string':str, 'bool':bool}[b[-1]].__name__, type(a).__name__))
         a, b = f(cls, *args)
-        if a and cls.return_type and type(a) != {'int':int, 'str':str, 'string':str}[cls.return_type]:
-            raise mylang_errors.InvalidProcedureReturnType("Procedure '{}' can only return type '{}', but caught '{}'".format(cls.name, {'int':int, 'str':str}[cls.return_type].__name__, type(a).__name__))
+        if a and cls.return_type and getattr(a, 'rep', type(a).__name__) != cls.return_type:
+            raise mylang_errors.InvalidProcedureReturnType("Procedure '{}' can only return type '{}', but caught '{}'".format(cls.name, cls.return_type, getattr(a, 'rep', type(a).__name__)))
         return a, b
     return wrapper
 
@@ -87,9 +87,20 @@ def check_private(**kwargs):
 def verify_private_procedure(**kwargs):
     def pass_name_method(f):
         def wrapper(cls, name):
-            if name in cls.private_procedures:
+            print 'in verify_private_procedure for checking {}, for {}'.format(name.is_private, name.name)
+            if name.is_private:
                 if kwargs.get('suppress'):
-                    raise mylang_errors.VariableNotDeclared("procedure '{}' not declared".format(cls.name))
-                raise mylang_errors.PrivateVariableDeclaration("procedure '{}' is private".format(cls.name))
+                    raise mylang_errors.VariableNotDeclared("procedure '{}' not declared".format(name.name))
+                raise mylang_errors.PrivateVariableDeclaration("procedure '{}' is private".format(name.name))
         return wrapper
     return pass_name_method
+
+def verify_parameter_arg_length(**kwargs):
+    def the_method(f):
+        @functools.wraps(f)
+        def wrapper(cls, *args):
+            if len(args) > kwargs.get('max_procedure_params'):
+                raise mylang_errors.TooManyParamemters("Procedure '{}' recieved {} paramters, but expected at least {}".format(cls.name, len(args), kwargs.get('max_procedure_params')))
+            return f(cls, *args)
+        return wrapper
+    return the_method
