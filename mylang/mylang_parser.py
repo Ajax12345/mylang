@@ -1158,8 +1158,10 @@ class Procedure:
 
             self.variables.update(dict(zip([i if not isinstance(i, list) else i[0] for i in self.params], args)))
             for a, b in zip([i if not isinstance(i, list) else i[0] for i in self.params], args):
-                self.scopes[a] = Scope(a, [], [], current_namespace = {i:getattr(b, i)() for i in ['lower', 'upper', 'capitalize']}) if isinstance(b, str) else Scope(a, [], [], current_namespace = {'increment':b+1, 'square':pow(b, 2)})
+                #Scope(start.value.value, [], [], current_namespace = dict([(i, getattr(b, i)()) for i in ['upper', 'lower', 'capitalize', 'isupper', 'islower']]+[('type', type(b).__name__)]) if isinstance(b, str) else dict([('increment', b+1), ('squared', pow(b, 2)), ('type', type(b).__name__)]) if isinstance(b, int) else {'type':getattr(b, 'rep', type(b).__name__)}, builtins = mylang_builtins.builtin_methods[getattr(b, 'rep', type(b).__name__)])
+                self.scopes[a] = Scope(a, [], [], current_namespace = dict([(i, getattr(b, i)()) for i in ['upper', 'lower', 'capitalize', 'isupper', 'islower']]+[('type', type(b).__name__)]) if isinstance(b, str) else dict([('increment', b+1), ('squared', pow(b, 2)), ('type', type(b).__name__)]) if isinstance(b, int) else {'type':getattr(b, 'rep', type(b).__name__)}, builtins = mylang_builtins.builtin_methods[getattr(b, 'rep', type(b).__name__)])
             self.parse()
+        print 'self.to_return is storing', self.to_return
         return self.to_return, self.variables if self.can_mutate else None
 
 class Procedures:
