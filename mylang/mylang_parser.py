@@ -19,6 +19,7 @@ class ArrayList:
     def __init__(self, line, **namespace):
         self.line = line
         self.contents = namespace.get('filled', [])
+
         self.rep = 'ArrayList'
         self.variables = namespace.get('variables', {})
         self.procedures = namespace.get('procedures', Procedures())
@@ -603,13 +604,64 @@ class Procedure:
                 if checking.type == 'DOT':
                     path = collections.deque([start.value.value])
                     to_assign = None
+                    seen_method_call = False
                     while True:
                         current = next(current_line, None)
                         if not current:
                             raise mylang_errors.IllegialPrecedence("At line {}, near '{}', reached abrupt end of statement".format(checking.value.line_number, checking.value.value))
+
                         if current.type == 'VARIABLE':
                             check_next = next(current_line, None)
                             current.value.isValid(check_next.value)
+                            if check_next.type == 'OPAREN':
+                                checking_next_val = next(current_line, None)
+                                if not checking_next_val:
+                                    raise mylang_errors.InvalidParameterType("At line {}, near '{}'. Expecting variable or ')'".format(check_next.value.line_number, check_next.value.value))
+                                check_next.value.isValid(checking_next_val.value)
+                                if checking_next_val.type == 'CPAREN':
+                                    starting_base = self.scopes if path[0] not in self.variables else self.variables
+
+                                    path = list(path)
+                                    while path:
+                                        starting_base = starting_base[path[0]]
+                                        path = path[1:]
+                                    starting_base.procedures[current.value.value]()
+
+                                    seen_method_call = True
+                                    current_line = iter([checking_next_val]+[i for i in current_line])
+                                    break
+                                current_line = iter([checking_next_val]+[i for i in current_line])
+                                current_method_params = []
+                                while True:
+                                    current_method_param = self.parse_expression(current_line)
+                                    current_method_params.append(current_method_param)
+                                    checking_to_continue = next(current_line, None)
+                                    if not checking_to_continue:
+                                        break
+                                    current_line = iter([checking_to_continue]+[i for i in current_line])
+                                starting_base = self.scopes if path[0] not in self.variables else self.variables
+
+                                path = list(path)
+                                path_copy = copy.deepcopy(path)
+                                while path:
+                                    starting_base = starting_base[path[0]]
+                                    path = path[1:]
+                                try:
+
+                                    builtin_procedure = mylang_builtins.builtin_methods[getattr(starting_base, 'rep', type(starting_base).__name__)]
+                                    print 'builtin_procedure here', builtin_procedure
+                                except (KeyError, IndexError):
+                                    pass
+
+                                else:
+                                    builtin_procedure[current.value.value]
+                                    builtin_procedure[current.value.value](path_copy[-1], starting_base, *current_method_params)
+                                    seen_method_call = True
+                                    break
+                                Scope.private_procedure_check(starting_base.procedures[current.value.value])
+                                starting_base.procedures[current.value.value](*current_method_params)
+                                seen_method_call = True
+                                break
                             if check_next.type == "DOT":
                                 path.append(current.value.value)
                             if check_next.type == 'ASSIGN':
@@ -617,11 +669,15 @@ class Procedure:
                                 to_assign = self.parse_assign(current_line)
                                 break
 
+                    if not seen_method_call:
+                        self.scopes[path[0]].update_vals(list(path)[1:], to_assign)
 
-                    self.scopes[path[0]].update_vals(list(path)[1:], to_assign)
 
             if start.type == 'RETURN':
                 self.to_return = self.parse_assign(current_line)
+
+            if start.type == 'ACCUMULATE':
+                self.to_return.append(self.parse_assign(current_line))
 
             if start.type == 'GLOBAL':
                 next_start = next(current_line, None)
@@ -802,6 +858,8 @@ class Procedure:
                 self.scopes[name] = Scope(name, scope_block, params)
 
             self.parse()
+
+
 
     @mylang_wrappers.parse_header(param_num = config.MAX_PARAMS)
     def parse_scope_header(self, header):
@@ -1161,7 +1219,7 @@ class Procedure:
                 #Scope(start.value.value, [], [], current_namespace = dict([(i, getattr(b, i)()) for i in ['upper', 'lower', 'capitalize', 'isupper', 'islower']]+[('type', type(b).__name__)]) if isinstance(b, str) else dict([('increment', b+1), ('squared', pow(b, 2)), ('type', type(b).__name__)]) if isinstance(b, int) else {'type':getattr(b, 'rep', type(b).__name__)}, builtins = mylang_builtins.builtin_methods[getattr(b, 'rep', type(b).__name__)])
                 self.scopes[a] = Scope(a, [], [], current_namespace = dict([(i, getattr(b, i)()) for i in ['upper', 'lower', 'capitalize', 'isupper', 'islower']]+[('type', type(b).__name__)]) if isinstance(b, str) else dict([('increment', b+1), ('squared', pow(b, 2)), ('type', type(b).__name__)]) if isinstance(b, int) else {'type':getattr(b, 'rep', type(b).__name__)}, builtins = mylang_builtins.builtin_methods[getattr(b, 'rep', type(b).__name__)])
             self.parse()
-        print 'self.to_return is storing', self.to_return
+
         return self.to_return, self.variables if self.can_mutate else None
 
 class Procedures:
