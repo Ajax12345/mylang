@@ -104,3 +104,10 @@ def verify_parameter_arg_length(**kwargs):
             return f(cls, *args)
         return wrapper
     return the_method
+
+def verify_switch_param_num(f):
+    def wrapper(cls, params):
+        if len(params) > 1:
+            raise mylang_errors.TooManyParamemters("procedure 'switch' takes 1 paramter, but recieved {}".format(len(params)))
+        return f(cls, params[0])
+    return wrapper
