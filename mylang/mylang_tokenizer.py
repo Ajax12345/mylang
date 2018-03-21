@@ -6,7 +6,7 @@ class Variable:
         self.line_number = line_number
         self.value = value
         self.rep = 'variable'
-        self.valid_after = ['plus', 'larrow', 'rarrow', 'equals', 'comma', 'assign', 'bar', 'star', 'forwardslash', 'obracket', 'startarrow', 'endarrow', 'dot', 'oparen', 'cparen', 'colon', 'cbracket']
+        self.valid_after = ['plus', 'larrow', 'rarrow', 'equals', 'comma', 'assign', 'bar', 'star', 'forwardslash', 'obracket', 'startarrow', 'endarrow', 'dot', 'oparen', 'cparen', 'colon', 'cbracket', 'digit']
     def isValid(self, token):
         print('offending', token.rep)
         if token.rep not in self.valid_after:
@@ -395,17 +395,47 @@ class ArrayList:
         self.rep = self.__class__.__name__.lower()
         self.valid_after = ['comma', 'obracket', 'cparen']
     def isValid(self, token):
-        print 'token here', token
         if token.rep not in self.valid_after:
             raise mylang_errors.IllegialPrecedence('At line number {line_number}, near {value}'.format(**self.__dict__))
     def __repr__(self):
         return "{}({})".format(self.__class__.__name__, "value = '{}'".format(self.value))
-
+class Switch:
+    def __init__(self, value, line_number):
+        self.value = value
+        self.line_number = line_number
+        self.rep = self.__class__.__name__.lower()
+        self.valid_after = ['oparen']
+    def isValid(self, token):
+        if token.rep not in self.valid_after:
+            raise mylang_errors.IllegialPrecedence('At line number {line_number}, near {value}'.format(**self.__dict__))
+    def __repr__(self):
+        return "{}({})".format(self.__class__.__name__, "value = '{}'".format(self.value))
+class Case:
+    def __init__(self, value, line_number):
+        self.value = value
+        self.line_number = line_number
+        self.rep = self.__class__.__name__.lower()
+        self.valid_after = ['dot']
+    def isValid(self, token):
+        if token.rep not in self.valid_after:
+            raise mylang_errors.IllegialPrecedence('At line number {line_number}, near {value}'.format(**self.__dict__))
+    def __repr__(self):
+        return "{}({})".format(self.__class__.__name__, "value = '{}'".format(self.value))
+class Default:
+    def __init__(self, value, line_number):
+        self.value = value
+        self.line_number = line_number
+        self.rep = self.__class__.__name__.lower()
+        self.valid_after = []
+    def isValid(self, token):
+        raise mylang_errors.IllegialPrecedence('At line number {line_number}, near {value}'.format(**self.__dict__))
+    def __repr__(self):
+        return "{}({})".format(self.__class__.__name__, "value = '{}'".format(self.value))
 class Tokenize:
     token = collections.namedtuple('token', 'type, value')
-    grammar = r'\bArrayList\b|\bimport\b|\bprivate\b|@|\breturn\b|\baccumulate\b|\btransmute\b|\bprocedure\b|\bglobal\b|\bscope\b|"[a-zA-Z0-9_\s]+"|\d+|\b[a-zA-Z0-9_]+\b|\=|\b[a-zA-Z0-9]+\b|\-\>|\+|\*|\-|\/|\{|\}|\>|\<|,|\.|\(|\)|\:'
-    types = [('ARRAYLIST', r'\bArrayList\b'), ('IMPORT', r'\bimport\b'), ('PRIVATEPROCEDURE', r'\bprivate\b'), ('PRIVATE', r'@'), ('ACCUMULATE', r'\baccumulate\b'), ('TRANSMUTE', r'\btransmute\b'), ('TORETURN', r'\-\>'), ('INT', r'\bint\b'), ('STRING', r'\bstring\b'), ('BOOL', r'\bbool\b'), ('COLON', r':'), ('RETURN', r'\breturn\b'), ('PROCEDURE', r'\bprocedure\b'), ('GLOBAL', r'\bglobal\b'), ('SCOPE', r'\bscope\b'), ('STRING', r'"[a-zA-Z0-9_\s]+"'), ('DIGIT', r'\b\d+\b'), ('VARIABLE', r'\b[a-zA-Z0-9_]+\b'), ('ASSIGN', r'\='), ('PLUS', '\+'), ('STAR', r'\*'), ('BAR', r'\-'), ('FORWARDSLASH', '\/'), ('OBRACKET', r'\{'), ('CBRACKET', r'\}'), ('STARTARROW', '\<'), ('ENDARROW', '\>'), ('COMMA', ','), ('DOT', '\.'), ('OPAREN', '\('), ('CPAREN', '\)')]
-    class_reps = {'STRING':String, 'DIGIT':Digit, 'VARIABLE':Variable, 'ASSIGN':Assign, 'PLUS':Plus, 'STAR':Star, 'BAR':Bar, 'FORWARDSLASH':Forwardslash, 'SCOPE':Scope, 'OBRACKET':OBracket, 'CBRACKET':CBracket, 'STARTARROW':Startarrow, 'ENDARROW':Endarrow, 'COMMA':Comma, 'DOT':Dot, 'OPAREN':OParen, 'CPAREN':CParen, 'GLOBAL':Global, 'PROCEDURE':Procedure, 'RETURN':Return, 'COLON':Colon, 'INT':Int, 'STRING':String, 'TORETURN':Toreturn, 'TRANSMUTE':Transmute, 'ACCUMULATE':Accumulate, 'PRIVATE':Private, 'PRIVATEPROCEDURE':Privateprocedure, 'BOOL':Bool, 'IMPORT':Import, 'ARRAYLIST':ArrayList}
+    grammar = r'\bdefault\b|\bswitch\b|\bcase\b|\bArrayList\b|\bimport\b|\bprivate\b|@|\breturn\b|\baccumulate\b|\btransmute\b|\bprocedure\b|\bglobal\b|\bscope\b|"[a-zA-Z0-9_\s]+"|\d+|\b[a-zA-Z0-9_]+\b|\=|\b[a-zA-Z0-9]+\b|\-\>|\+|\*|\-|\/|\{|\}|\>|\<|,|\.|\(|\)|\:'
+    types = [('DEFAULT', r'\bdefault\b'), ('SWITCH', r'\bswitch\b'), ('CASE', r'\bcase\b'), ('ARRAYLIST', r'\bArrayList\b'), ('IMPORT', r'\bimport\b'), ('PRIVATEPROCEDURE', r'\bprivate\b'), ('PRIVATE', r'@'), ('ACCUMULATE', r'\baccumulate\b'), ('TRANSMUTE', r'\btransmute\b'), ('TORETURN', r'\-\>'), ('INT', r'\bint\b'), ('STRING', r'\bstring\b'), ('BOOL', r'\bbool\b'), ('COLON', r':'), ('RETURN', r'\breturn\b'), ('PROCEDURE', r'\bprocedure\b'), ('GLOBAL', r'\bglobal\b'), ('SCOPE', r'\bscope\b'), ('STRING', r'"[a-zA-Z0-9_\s]+"'), ('DIGIT', r'\b\d+\b'), ('VARIABLE', r'\b[a-zA-Z0-9_]+\b'), ('ASSIGN', r'\='), ('PLUS', '\+'), ('STAR', r'\*'), ('BAR', r'\-'), ('FORWARDSLASH', '\/'), ('OBRACKET', r'\{'), ('CBRACKET', r'\}'), ('STARTARROW', '\<'), ('ENDARROW', '\>'), ('COMMA', ','), ('DOT', '\.'), ('OPAREN', '\('), ('CPAREN', '\)')]
+    class_reps = {'STRING':String, 'DIGIT':Digit, 'VARIABLE':Variable, 'ASSIGN':Assign, 'PLUS':Plus, 'STAR':Star, 'BAR':Bar, 'FORWARDSLASH':Forwardslash, 'SCOPE':Scope, 'OBRACKET':OBracket, 'CBRACKET':CBracket, 'STARTARROW':Startarrow, 'ENDARROW':Endarrow, 'COMMA':Comma, 'DOT':Dot, 'OPAREN':OParen, 'CPAREN':CParen, 'GLOBAL':Global, 'PROCEDURE':Procedure, 'RETURN':Return, 'COLON':Colon, 'INT':Int, 'STRING':String, 'TORETURN':Toreturn, 'TRANSMUTE':Transmute, 'ACCUMULATE':Accumulate, 'PRIVATE':Private, 'PRIVATEPROCEDURE':Privateprocedure, 'BOOL':Bool, 'IMPORT':Import, 'ARRAYLIST':ArrayList, 'SWITCH':Switch, 'CASE':Case, 'DEFAULT':Default}
     def __init__(self, filename):
         self.file_data = [i.strip('\n') for i in open(filename)]
         self.tokenized_data = filter(None, list(Tokenize.parse_tokens(self.file_data)))
