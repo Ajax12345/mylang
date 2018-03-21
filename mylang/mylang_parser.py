@@ -2664,6 +2664,7 @@ class Parser:
                     if not check_second or check_second.type == 'CPAREN' or check_second.type == 'OBRACKET':
                         break
                     current_line = iter([check_second]+[i for i in current_line])
+
                 current_stack = collections.deque(['{']) if any(i.type == 'OBRACKET' for i in temp_copy) else collections.deque()
                 switch_namespace = []
                 while True:
@@ -2671,7 +2672,7 @@ class Parser:
                     if not current_test_line:
                         raise mylang_errors.ReachedEndOfSwitchBlock("Expecting '}'")
                     the_line = [i for i in current_test_line]
-                    if any(i.type == 'OBRACKET' for i in the_line) and len(the_line) == 1:
+                    if any(i.type == 'OBRACKET' for i in the_line):
                         current_stack.append('{')
                     elif any(i.type == 'CBRACKET' for i in the_line) and len(the_line) == 1:
                         if not current_stack:
