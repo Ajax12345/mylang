@@ -19,6 +19,10 @@ class ReachedEndOfScopeBlock(Exception):
 
 class ReachedEndOfProcedureBlock(Exception):
     pass
+class ReachedEndOfSwitchBlock(Exception):
+    pass
+class InvalidStartOfSwitchBlock(Exception):
+    pass
 
 class InvalidStartOfProcedureBlock(Exception):
     pass
@@ -70,4 +74,7 @@ class CollectionDoesNotContainItem(Exception):
     pass
 
 class ObjectNotDeclared(Exception):
+    pass
+
+class InvalidSwitchStatement(Exception):
     pass
