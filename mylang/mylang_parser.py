@@ -11,9 +11,249 @@ import itertools
 import trace_parser
 import mylang_wrappers
 import mylang_builtins
+import operator
 import re
 import os
 #IDEA: conda programming language!
+
+
+class SwitchCase:
+    def __init__(self, cases, default = None, **kwargs):
+        self.cases = cases
+
+        self.default = default
+        self.first_option = []
+        self.variables = kwargs.get('variables', None)
+        self.procedures = kwargs.get('procedures', Procedures())
+        self.scopes = kwargs.get('scopes', Scopes())
+        self.possibilities = []
+        self.seen_successfull_pass = False
+        self.operators = ['ne', 'le', 'eq', 'lt', 'gt', 'bool']
+        self.parse_cases()
+
+    @mylang_wrappers.check_existence()
+    def variable_exists(self, var):
+        if var.value.value not in self.variables:
+            if var.value.value not in self.scopes:
+                raise mylang_errors.VariableNotDeclared("At line {}, near '{}': variable '{}' not declared".format(var.value.line_number, var.value.value, var.value.value))
+            return self.scopes[var.value.value]
+        return self.variables[var.value.value]
+
+    def parse_case_statement(self, header):
+        path = []
+        to_compare = None
+        start = next(header, None)
+        print 'start here', start
+        if not start:
+            raise mylang_errors.InvalidSyntax("Invalid case header")
+        if start.type == 'CASE':
+            check_next = next(header, None)
+            if not check_next or check_next.type != 'DOT':
+                raise mylang_errors.InvalidSyntax("Invalid case header")
+            while True:
+                check_next1 = next(header, None)
+
+                if not check_next1:
+                    raise mylang_errors.InvalidSyntax("Invalid case header")
+                if check_next1.value.value in self.operators:
+                    path.append(check_next1.value.value)
+                    check_final = next(header, None)
+                    if not check_final:
+                        raise mylang_errors.InvalidSwitchStatement("At line {}, near '{}': expecting comparision value".format(check_next1.value.line_number, check_next1.value.value))
+                    if check_final.type != 'DOT':
+                        temp_header = [i for i in header]
+
+                        if temp_header[-1].type != 'COLON':
+                            raise mylang_errors.InvalidSwitchStatement("At line {}, near '{}': expecting ':' at end of switch declaration".format(temp_header[-1].value.line_number, temp_header[-1].value.value))
+                        return path, self.parse_expression(iter([check_final]+temp_header[:-1]))
+                if check_next1.value.value == 'optional':
+                    print 'IN HERE IN OPTIONAl'
+                    path.append(check_next1.value.value)
+                    check_next2 = next(header, None)
+                    if not check_next2:
+                        raise mylang_errors.InvalidSyntax("At line {}:near '{}': expecting comparison value".format(check_next.value.line_number, check_next.value.value))
+                    temp_header = [i for i in header]
+                    if temp_header[-1].type != 'COLON':
+                        raise mylang_errors.InvalidSwitchStatement("At line {}, near '{}': expecting ':' at end of switch declaration".format(temp_header[-1].value.line_number, temp_header[-1].value.value))
+                    return path, self.parse_expression(iter([check_next2]+temp_header[:-1]))
+
+    def parse_cases(self):
+
+        path, to_compare = self.parse_case_statement(self.cases[0][0])
+        if len(path) > 1:
+            raise mylang_errors.InvalidSwitchStatement("First 'switch' statement cannot be optional")
+        self.first_option = [[path[0], None, to_compare], self.cases[0][-1]]
+        for header, to_parse in self.cases[1:]:
+            path, to_compare = self.parse_case_statement(header)
+            self.possibilities.append([[path[0], None if len(path) == 1 else path[-1], to_compare], to_parse])
+
+
+    def parse_expression(self, line):
+        operation_converters = {'PLUS':lambda x, y:x+y, 'BAR':lambda x,y:x-y, 'STAR':lambda x, y:x*y, 'FORWARDSLASH':lambda x, y:x/y}
+        current = next(line, None)
+        print 'current last', current
+        if not current:
+            return None
+        if current.type == 'VARIABLE':
+            next_val = next(line, None)
+            if not next_val or next_val.type == 'COMMA' or next_val.type == 'CPAREN':
+                return self.variable_exists(current)
+            current.value.isValid(next_val.value)
+
+            if next_val.type == 'OPAREN':
+                check_next_v = next(line, None)
+                if not check_next_v:
+                    raise mylang_errors.ParameterSytnaxError("At line {}, near '{}': reached unexpected end of procedure call".format(current.value.line_number, current.value.value))
+                if check_next_v.type == 'CPAREN':
+                    if current.value.value not in self.procedures:
+                        raise mylang_errors.AttributeNotFound("At line {}, near '{}': procedure '{}' not found".format(current.value.line_number, current.value.value, current.value.value))
+                    result, namespace = self.procedures[current.value.value]()
+                    self.variables = namespace if namespace else self.variables
+                    check_last_v = next(line, None)
+                    if check_last_v.type in ['COMMA', 'CPAREN']:
+                        return result
+                    if check_last_v.type in operation_converters:
+                        final_result = self.parse_expression(line)
+                        if type(result) != type(final_result):
+                            raise mylang_errors.IncompatableTypes("At line {}, near '{}' cannot {} value of type '{}' to type '{}'".format(check_last_v.value.line_number, check_last_v.value.value, {'PLUS':'concatinate', 'BAR':'subtract', 'STAR':'multiply', 'FORWARDSLASH':'divide'}[check_last_v.type], type(result).__name__, type(final_result).__name__))
+                        return operation_converters[check_last_v.type](result, final_result)
+                if current.value.value not in self.procedures:
+                    raise mylang_errors.VariableNotDeclared("At line {}: procedure '{}' not declared".format(current.value.line_number, current.value.value))
+                line = iter([check_next_v]+[i for i in line])
+                params = []
+                while True:
+                    current_param = self.parse_expression(line)
+                    can_continue = next(line, None)
+                    params.append(current_param)
+                    if not can_continue or can_continue.type == 'CPAREN':
+                        break
+                    line = iter([can_continue]+[i for i in line])
+                print 'PARAMS HERE', params
+                result, namespace = self.procedures[current.value.value](*params)
+                self.variables = namespace if namespace else self.variables
+                checking_next_v = next(line, None)
+                if not checking_next_v or checking_next_v.type in ['COMMA', 'CPAREN']:
+                    return result
+                if checking_next_v.type in operation_converters:
+                    returned_result = self.parse_expression(line)
+                    if type(result) != type(returned_result):
+                        raise mylang_errors.IncompatableTypes("At line {}, near '{}' cannot {} value of type '{}' to type '{}'".format(checking_next_v.value.line_number, checking_next_v.value.value, {'PLUS':'concatinate', 'BAR':'subtract', 'STAR':'multiply', 'FORWARDSLASH':'divide'}[checking_next_v.type], type(result).__name__, type(returned_result).__name__))
+                    return operation_converters[checking_next_v.type](result, returned_result)
+            if next_val.type == 'DOT':
+                path = [current.value.value]
+
+                seen_operator = False
+                while True:
+                    current_attr = next(line, None)
+                    if not current_attr:
+                        raise mylang_errors.InvalidAttributeCall("At line {}, near '{}'".format(next_val.value.line_number, next_val.value.value))
+                    if current_attr.type == 'VARIABLE':
+
+                        checking_next = next(line, None)
+                        if not checking_next:
+                            path.append(current_attr.value.value)
+                            break
+                        current_attr.value.isValid(checking_next.value)
+                        path.append(current_attr.value.value)
+                        if checking_next.type == 'OPAREN':
+
+                            method_params = []
+                            while True:
+                                current_param = self.parse_expression(line)
+                                method_params.append(current_param)
+                                check_next_final = next(line, None)
+
+                                if not check_next_final or check_next_final.type == "CPAREN" or check_next_final.type == 'COMMA':
+
+                                    break
+
+                                line = iter([check_next_final]+[i for i in line])
+
+                            current_scope_selection = self.scopes if path[0] not in self.variables else self.variables
+                            path = list(path)
+                            the_method = path[-1]
+                            copy_path = list(copy.deepcopy(path))
+                            start = path[0]
+                            path = path[:-1]
+                            while path:
+                                current_scope_selection = current_scope_selection[path[0]]
+                                path = path[1:]
+
+
+                            if the_method in mylang_builtins.builtin_methods[getattr(current_scope_selection, 'rep', type(current_scope_selection).__name__)]:
+                                seen_operator = True
+                                return mylang_builtins.builtin_methods[getattr(current_scope_selection, 'rep', type(current_scope_selection).__name__)][the_method](copy_path[-2], current_scope_selection, *method_params)
+                            Scope.private_procedure_check(current_scope_selection.procedures[the_method])
+                            to_return, namespace = current_scope_selection.procedures[the_method](*method_params)
+                            base = self.scopes if start not in self.variables else self.variables
+                            base[start].update_namespace(copy_path, namespace, start=start, end=copy_path[-1])
+                            return to_return
+                        if checking_next.type in operation_converters or checking_next.type == 'CPAREN' or checking_next.type == 'COMMA':
+                            seen_operator = None if (checking_next.type == 'CPAREN' or checking_next.type == 'COMMA') else checking_next.type
+                            break
+
+                start_scope = path[0]
+                flag = False
+                if start_scope not in self.scopes:
+                    if start_scope not in self.variables:
+                        raise mylang_errors.VariableNotDeclared("Scope '{}' not declared".format(start_scope))
+                    flag = True
+                current_value_attr = self.scopes if not flag else self.variables
+                while path:
+                    try:
+                        new_val = current_value_attr[path[0]]
+                        print 'in try block', new_val
+                    except:
+                        if path[0] not in current_value_attr.scopes:
+                            raise mylang_errors.AttributeNotFound("At line {}, near '{}':scope '{}' has no attribute '{}'".format(current_attr.value.line_number, current_attr.value.value, start_scope, path[0]))
+                        current_value_attr = current_value_attr.scopes[path[0]]
+                        path = path[1:]
+                    else:
+                        current_value_attr = new_val
+                        path = path[1:]
+                if seen_operator:
+                    returned_val = self.parse_expression(line)
+                    if type(current_value_attr) != type(returned_val):
+                        raise mylang_errors.IncompatableTypes("At line {}, near '{}': cannot {} value of type '{}' to type '{}'".format(current_attr.value.line_number, current_attr.value.value, {'PLUS':'concatinate', 'BAR':'subtract', 'STAR':'multiply', 'FORWARDSLASH':'divide'}[seen_operator], type(current_value_attr).__name__, type(returned_val).__name__))
+                    return operation_converters[seen_operator](current_value_attr, returned_val)
+
+                return current_value_attr
+            returned_val = self.parse_expression(line)
+            if type(self.variables[current.value.value]) != type(returned_val):
+                raise mylang_errors.IncompatableTypes("At line {}, near '{}': cannot {} variable of type '{}' to type '{}'".format(current.value.line_number, current.value.value, {'PLUS':'concatinate', 'BAR':'subtract', 'STAR':'multiply', 'FORWARDSLASH':'divide'}[next_val.type], type(self.variables[current.value.value]).__name__, type(returned_val).__name__))
+            return operation_converters[next_val.type](self.variables[current.value.value], returned_val)
+        if current.type == 'DIGIT':
+            next_val = next(line, None)
+            if not next_val or next_val.type == 'COMMA' or next_val.type == 'CPAREN':
+                return int(current.value.value)
+            current.value.isValid(next_val.value)
+            return_val = self.parse_expression(line)
+            if not isinstance(return_val, int):
+                raise mylang_errors.IncompatableTypes("At line {}, near '{}': cannot {} variable of type '{}' to type '{}'".format(current.value.line_number, current.value.value, {'PLUS':'concatinate', 'BAR':'subtract', 'STAR':'multiply', 'FORWARDSLASH':'divide'}[next_val.type], type(self.variables[current.value.value]).__name__, type(return_val).__name__))
+            return operation_converters[next_val.type](int(current.value.value), return_val)
+        if current.type == 'STRING':
+            next_val = next(line, None)
+            if not next_val or next_val.type == 'COMMA' or next_val.type == 'CPAREN':
+                return current.value.value[1:-1]
+            return_val = self.parse_expression(line)
+            if not isinstance(return_val, str):
+                raise mylang_errors.IncompatableTypes("At line {}, near '{}': cannot {} variable of type '{}' to type '{}'".format(current.value.line_number, current.value.value, {'PLUS':'concatinate', 'BAR':'subtract', 'STAR':'multiply', 'FORWARDSLASH':'divide'}[next_val.type], type(self.variables[current.value.value]).__name__, type(return_val).__name__))
+            if next_val.type == "PLUS":
+                return current.value.value[1:-1] + return_val
+        raise mylang_errors.NotYetSupportedError("Operation not yet supported")
+
+    @mylang_wrappers.verify_switch_param_num
+    def __call__(self, param):
+        return param
+        '''
+        if getattr(operator, self.first_option[0][0])(self.first_option[0][-1], param):
+            self.token_list = self.first_option[-1]
+            self.parse()
+        '''
+    def __iter__(self):
+        for i in self.possibilities:
+            yield i
+
 
 class ArrayList:
     def __init__(self, line, **namespace):
@@ -1356,6 +1596,11 @@ class Scope:
                             while path:
                                 current_scope_selection = current_scope_selection[path[0]]
                                 path = path[1:]
+
+
+                            if the_method in mylang_builtins.builtin_methods[getattr(current_scope_selection, 'rep', type(current_scope_selection).__name__)]:
+                                seen_operator = True
+                                return mylang_builtins.builtin_methods[getattr(current_scope_selection, 'rep', type(current_scope_selection).__name__)][the_method](copy_path[-2], current_scope_selection, *method_params)
                             Scope.private_procedure_check(current_scope_selection.procedures[the_method])
                             to_return, namespace = current_scope_selection.procedures[the_method](*method_params)
                             base = self.scopes if start not in self.variables else self.variables
@@ -1395,25 +1640,6 @@ class Scope:
             if type(self.variables[current.value.value]) != type(returned_val):
                 raise mylang_errors.IncompatableTypes("At line {}, near '{}': cannot {} variable of type '{}' to type '{}'".format(current.value.line_number, current.value.value, {'PLUS':'concatinate', 'BAR':'subtract', 'STAR':'multiply', 'FORWARDSLASH':'divide'}[next_val.type], type(self.variables[current.value.value]).__name__, type(returned_val).__name__))
             return operation_converters[next_val.type](self.variables[current.value.value], returned_val)
-        if current.type == 'DIGIT':
-            next_val = next(line, None)
-            if not next_val or next_val.type == 'COMMA' or next_val.type == 'CPAREN':
-                return int(current.value.value)
-            current.value.isValid(next_val.value)
-            return_val = self.parse_expression(line)
-            if not isinstance(return_val, int):
-                raise mylang_errors.IncompatableTypes("At line {}, near '{}': cannot {} variable of type '{}' to type '{}'".format(current.value.line_number, current.value.value, {'PLUS':'concatinate', 'BAR':'subtract', 'STAR':'multiply', 'FORWARDSLASH':'divide'}[next_val.type], type(self.variables[current.value.value]).__name__, type(return_val).__name__))
-            return operation_converters[next_val.type](int(current.value.value), return_val)
-        if current.type == 'STRING':
-            next_val = next(line, None)
-            if not next_val or next_val.type == 'COMMA' or next_val.type == 'CPAREN':
-                return current.value.value[1:-1]
-            return_val = self.parse_expression(line)
-            if not isinstance(return_val, str):
-                raise mylang_errors.IncompatableTypes("At line {}, near '{}': cannot {} variable of type '{}' to type '{}'".format(current.value.line_number, current.value.value, {'PLUS':'concatinate', 'BAR':'subtract', 'STAR':'multiply', 'FORWARDSLASH':'divide'}[next_val.type], type(self.variables[current.value.value]).__name__, type(return_val).__name__))
-            if next_val.type == "PLUS":
-                return current.value.value[1:-1] + return_val
-        raise mylang_errors.NotYetSupportedError("Operation not yet supported")
         if current.type == 'DIGIT':
             next_val = next(line, None)
             if not next_val or next_val.type == 'COMMA' or next_val.type == 'CPAREN':
@@ -2349,6 +2575,11 @@ class Parser:
                             while path:
                                 current_scope_selection = current_scope_selection[path[0]]
                                 path = path[1:]
+
+
+                            if the_method in mylang_builtins.builtin_methods[getattr(current_scope_selection, 'rep', type(current_scope_selection).__name__)]:
+                                seen_operator = True
+                                return mylang_builtins.builtin_methods[getattr(current_scope_selection, 'rep', type(current_scope_selection).__name__)][the_method](copy_path[-2], current_scope_selection, *method_params)
                             Scope.private_procedure_check(current_scope_selection.procedures[the_method])
                             to_return, namespace = current_scope_selection.procedures[the_method](*method_params)
                             base = self.scopes if start not in self.variables else self.variables
@@ -2415,6 +2646,98 @@ class Parser:
             current_line, self.current_line_on = itertools.tee(current_line)
 
             start = next(current_line)
+            print 'start in parse() check', start
+            if start.type == 'SWITCH':
+                test_second = next(current_line, None)
+                if not test_second:
+                    raise mylang_errors.InvalidParameterType("At line {}, near '{}': expecting '('".format(start.value.line_number, start.value.value))
+                start.value.isValid(test_second.value)
+                params = []
+                copy_header_line = [i for i in current_line]
+                temp_copy = copy.deepcopy(copy_header_line)
+                current_line = iter(copy_header_line)
+                while True:
+                    val = self.parse_expression(current_line)
+                    params.append(val)
+                    check_second = next(current_line, None)
+
+                    if not check_second or check_second.type == 'CPAREN' or check_second.type == 'OBRACKET':
+                        break
+                    current_line = iter([check_second]+[i for i in current_line])
+                current_stack = collections.deque(['{']) if any(i.type == 'OBRACKET' for i in temp_copy) else collections.deque()
+                switch_namespace = []
+                while True:
+                    current_test_line = next(self.token_list, None)
+                    if not current_test_line:
+                        raise mylang_errors.ReachedEndOfSwitchBlock("Expecting '}'")
+                    the_line = [i for i in current_test_line]
+                    if any(i.type == 'OBRACKET' for i in the_line) and len(the_line) == 1:
+                        current_stack.append('{')
+                    elif any(i.type == 'CBRACKET' for i in the_line) and len(the_line) == 1:
+                        if not current_stack:
+                            raise mylang_errors.InvalidStartOfSwitchBlock("Expecting '{'")
+                        val = current_stack.pop()
+                        if not current_stack:
+                            break
+                    else:
+                        switch_namespace.append(the_line)
+                #print 'switch data: params:', params
+                cases = [list(b) for _, b in itertools.groupby(switch_namespace, key=lambda x:x[0].type == 'CASE' or x[0].type == 'DEFAULT')]
+
+                default_cases = cases[-2:] if cases[-2][0][0].type == 'DEFAULT' else None
+                cases = cases[:-2] if cases[-2][0][0].type == 'DEFAULT' else cases
+                seen_successfull_pass = False
+
+                new_cases = [map(iter, cases[i])+[iter(map(iter, cases[i+1]))] for i in range(0, len(cases), 2)]
+
+                default_cases = default_cases if not default_cases else iter(map(iter, default_cases[-1]))
+                full_switch_case = SwitchCase(new_cases, default_cases, scopes = self.scopes, variables = self.variables, procedures = self.procedures)
+                filtered_param = full_switch_case(params)
+                print 'trying first', (full_switch_case.first_option[0][-1], filtered_param)
+
+                print 'truthy results here', getattr(operator, full_switch_case.first_option[0][0], lambda _, y:bool(y))(full_switch_case.first_option[0][-1], filtered_param)
+                if getattr(operator, full_switch_case.first_option[0][0], lambda x, _:bool(x))(full_switch_case.first_option[0][-1], filtered_param):
+                    seen_successfull_pass = True
+                    temp_token_list_here = [[b for b in i] for i in self.token_list]
+                    print 'temp_token_list_here', temp_token_list_here
+                    copy_token_list = copy.deepcopy(temp_token_list_here)
+                    self.token_list = full_switch_case.first_option[-1]
+                    self.parse()
+                    self.token_list = iter(map(iter, copy_token_list))
+                for case_condition in full_switch_case:
+                    if seen_successfull_pass:
+                        print 'case_condition here', case_condition
+                        if getattr(operator, case_condition[0][0])(case_condition[0][-1], filtered_param):
+                            seen_successfull_pass = True
+                            temp_token_list_here = [[b for b in i] for i in self.token_list]
+                            copy_token_list = copy.deepcopy(temp_token_list_here)
+                            self.token_list = case_condition[-1]
+                            self.parse()
+                            self.token_list = iter(map(iter, copy_token_list))
+                        else:
+                            seen_successfull_pass = False
+                    else:
+                        print '()'*10
+                        print 'case_condition check here', case_condition
+                        print '()'*10
+                        if not case_condition[0][1]:
+                            if getattr(operator, case_condition[0][0])(case_condition[0][-1], filtered_param):
+                                seen_successfull_pass = True
+                                temp_token_list_here = [[b for b in i] for i in self.token_list]
+                                copy_token_list = copy.deepcopy(temp_token_list_here)
+                                self.token_list = case_condition[-1]
+                                self.parse()
+                                self.token_list = iter(map(iter, copy_token_list))
+                            else:
+                                seen_successfull_pass = False
+                if not seen_successfull_pass:
+                    if full_switch_case.default:
+                        temp_token_list_here = [[b for b in i] for i in self.token_list]
+                        copy_token_list = copy.deepcopy(temp_token_list_here)
+                        self.token_list = full_switch_case.default
+                        self.parse()
+                        self.token_list = iter(map(iter, copy_token_list))
+
             if start.type == 'IMPORT':
                 file_path, flag = mylang_builtins.get_file_path(current_line)
                 parsed_file = Parser(mylang_tokenizer.Tokenize(file_path).tokenized_data)
