@@ -517,6 +517,7 @@ class Procedure:
         self.is_private = kwargs.get('is_private', False)
         self.return_type = kwargs.get('return_type')
         self.name = name
+        print 'transfuring here', namespace
         #print 'in constructor for procedure {name} with visibility of {is_private}'.format(**self.__dict__)
         self.procedures = Procedures()
         if kwargs.get('current_namespace_procedures'):
@@ -792,6 +793,7 @@ class Procedure:
             current_line, self.current_line_on = itertools.tee(current_line)
 
             start = next(current_line)
+            
             if start.type == 'VARIABLE':
                 checking = next(current_line)
                 start.value.isValid(checking.value)
@@ -1016,21 +1018,25 @@ class Procedure:
                     scope_block = []
                     brackets_seen = collections.deque(['{']) if not temp_flag else collections.deque()
                     while True:
-                        line = [c for c in next(self.token_list, None)]
-                        if len(line) == 1 and line[0].value.value == '{':
+                        current = next(self.token_list, None)
+                        if not current:
+                            raise mylang_errors.ReachedEndOfScopeBlock("missing block terminating character '}'")
+                        line = [i for i in current]
+                        if any(i.type == 'OBRACKET' for i in line):
                             brackets_seen.append('{')
-                        if len(line) == 1 and line[0].value.value == '}':
-                            try:
-                                val = brackets_seen.pop()
-                                scope_block.append(line)
-                            except:
-                                raise mylang_errors.ReachedEndOfScopeBlock("missing block initiating character '{'")
+                            scope_block.append(line)
+                        if any(i.type == 'CBRACKET' for i in line):
+                            if not brackets_seen:
+                                raise mylang_errors.ReachedEndOfScopeBlock("missing block initiation character '{'")
+                            val = brackets_seen.pop()
                             if not brackets_seen:
                                 break
-                        if line is None:
-                            raise mylang_errors.ReachedEndOfScopeBlock("missing block terminating character '}'")
+                            else:
+                                scope_block.append(line)
+                        else:
+                            scope_block.append(line)
 
-                        scope_block.append(line)
+                        print 'scope_block here', scope_block
                     self.scopes[name] = Scope(name, scope_block, params, current_namespace = self.variables)
             if start.type == 'PROCEDURE':
                 possible_name = next(current_line, None)
@@ -1048,13 +1054,18 @@ class Procedure:
                 ##print 'CHECKING FUNCTION_PARAMS here for function {}'.format(possible_name.value.value), function_params
                 current_stack = collections.deque(['{']) if not warnings else collections.deque()
                 procedure_namespace = []
+                start_with = next(self.token_list)
                 while True:
+                    print '-'*20
+                    print 'current_stack', current_stack
+                    print 'procedure_namespace here', procedure_namespace
+                    print '-'*20
                     current_namespace_line = next(self.token_list, None)
 
                     if not current_namespace_line:
                         raise mylang_errors.ReachedEndOfProcedureBlock("Expecting a close bracket for procedure '{}'".format(possible_name.value.value))
                     new_namespace_line = [i for i in current_namespace_line]
-
+                    print 'new_namespace_line', new_namespace_line
 
                     if any(i.type == 'OBRACKET' for i in new_namespace_line):
                         current_stack.append('{')
@@ -1065,6 +1076,8 @@ class Procedure:
                         val = current_stack.pop()
                         if not current_stack:
                             break
+                        else:
+                            procedure_namespace.append(new_namespace_line)
                     else:
                         procedure_namespace.append(new_namespace_line)
 
@@ -1073,27 +1086,32 @@ class Procedure:
                 self.scopes[possible_name.value.value].scopes['signature'] = Scope('Signature', [], [], current_namespace = {'parameters':', '.join(i if not isinstance(i, list) else i[0] for i in function_params), 'types':', '.join('{}:{}'.format(i, None) if not isinstance(i, list) else "{}:{}".format(i[0], i[1]) for i in function_params)})
                 self.procedures[possible_name.value.value] = Procedure(possible_name.value.value, function_params, procedure_namespace, return_type = return_type, current_namespace_procedures = self.procedures)
             if start.type == 'SCOPE':
-                params, name, flags = self.parse_scope(start, current_line, self.token_list)
 
-                temp_flag = bool(flags)
+                params, name, flags = self.parse_scope(start, current_line, self.token_list)
+                pop_top = next(self.token_list)
                 scope_block = []
-                brackets_seen = collections.deque(['{']) if not temp_flag else collections.deque()
+                brackets_seen = collections.deque(['{']) if not flags else collections.deque()
                 while True:
-                    line = [c for c in next(self.token_list, None)]
-                    if len(line) == 1 and line[0].value.value == '{':
+                    check_next = next(self.token_list, None)
+                    if not check_next:
+                        raise mylang_errors.ReachedEndOfScopeBlock("Expecting '}'")
+                    line = [i for i in check_next]
+                    print '$'*20
+                    print 'line here', line
+                    print '$'*20
+                    if any(i.type == 'OBRACKET' for i in line):
                         brackets_seen.append('{')
-                    if len(line) == 1 and line[0].value.value == '}':
-                        try:
-                            val = brackets_seen.pop()
-                            scope_block.append(line)
-                        except:
-                            raise mylang_errors.ReachedEndOfScopeBlock("missing block initiating character '{'")
+                        scope_block.append(line)
+                    if any(i.type == 'CBRACKET' for i in line):
+                        if not brackets_seen:
+                            raise mylang_errors.InvalidScopeBlock("Expecting '{'")
+                        val = brackets_seen.pop()
                         if not brackets_seen:
                             break
-                    if line is None:
-                        raise mylang_errors.ReachedEndOfScopeBlock("missing block terminating character '}'")
-
-                    scope_block.append(line)
+                        else:
+                            scope_block.append(line)
+                    else:
+                        scope_block.append(line)
 
                 self.scopes[name] = Scope(name, scope_block, params)
 
@@ -1486,6 +1504,7 @@ class Scope:
         self.params = params
         self.builtins = kwargs.get('builtins', {})
         #print 'builtins here for name {}'.format(name), self.builtins
+
         self.private_variables = []
         self.token_list = iter(map(iter, namespace))
         self.private_procedures = []
@@ -2015,6 +2034,7 @@ class Scope:
 
                 function_params, warnings, return_type = self.parse_procedure_header(current_line)
                 #print 'CHECKING FUNCTION_PARAMS here for function {}'.format(possible_name.value.value), function_params
+
                 current_stack = collections.deque(['{']) if not warnings else collections.deque()
                 procedure_namespace = []
                 while True:
@@ -2047,23 +2067,32 @@ class Scope:
 
                 temp_flag = bool(flags)
                 scope_block = []
+
                 brackets_seen = collections.deque(['{']) if not temp_flag else collections.deque()
+                print 'original bracket here sd', brackets_seen
                 while True:
-                    line = [c for c in next(self.token_list, None)]
-                    if len(line) == 1 and line[0].value.value == '{':
-                        brackets_seen.append('{')
-                    if len(line) == 1 and line[0].value.value == '}':
-                        try:
-                            val = brackets_seen.pop()
-                            scope_block.append(line)
-                        except:
-                            raise mylang_errors.ReachedEndOfScopeBlock("missing block initiating character '{'")
-                        if not brackets_seen:
-                            break
-                    if line is None:
+                    print '+'*20
+                    print 'brackets_seen here', brackets_seen
+                    print '+'*20
+                    current_line = next(self.token_list, None)
+                    if not current_line:
                         raise mylang_errors.ReachedEndOfScopeBlock("missing block terminating character '}'")
 
-                    scope_block.append(line)
+                    final_line = [i for i in current_line]
+                    if any(i.type == 'OBRACKET' for i in final_line):
+                        brackets_seen.append('{')
+                        scope_block.append(final_line)
+                    elif any(i.type == 'CBRACKET' for i in final_line):
+                        if not brackets_seen:
+                            raise mylang_errors.ReachedEndOfScopeBlock("missing block initiating character '{'")
+                        val = brackets_seen.pop()
+                        if not brackets_seen:
+                            break
+                        else:
+                            scope_block.append(final_line)
+                    else:
+                        scope_block.append(final_line)
+
 
                 self.scopes[name] = Scope(name, scope_block, params)
 
@@ -2697,7 +2726,8 @@ class Parser:
                 print 'trying first', (full_switch_case.first_option[0][-1], filtered_param)
 
                 print 'truthy results here', getattr(operator, full_switch_case.first_option[0][0], lambda _, y:bool(y))(full_switch_case.first_option[0][-1], filtered_param)
-                if getattr(operator, full_switch_case.first_option[0][0], lambda x, _:bool(x))(full_switch_case.first_option[0][-1], filtered_param):
+                if getattr(operator, full_switch_case.first_option[0][0], lambda _, y:bool(y))(filtered_param, full_switch_case.first_option[0][-1]):
+                    print 'GOT IN HERE HERE'
                     seen_successfull_pass = True
                     temp_token_list_here = [[b for b in i] for i in self.token_list]
                     print 'temp_token_list_here', temp_token_list_here
@@ -2708,7 +2738,7 @@ class Parser:
                 for case_condition in full_switch_case:
                     if seen_successfull_pass:
                         print 'case_condition here', case_condition
-                        if getattr(operator, case_condition[0][0])(case_condition[0][-1], filtered_param):
+                        if getattr(operator, case_condition[0][0], lambda _, y:bool(y))(case_condition[0][-1], filtered_param):
                             seen_successfull_pass = True
                             temp_token_list_here = [[b for b in i] for i in self.token_list]
                             copy_token_list = copy.deepcopy(temp_token_list_here)
@@ -2721,8 +2751,8 @@ class Parser:
                         print '()'*10
                         print 'case_condition check here', case_condition
                         print '()'*10
-                        if not case_condition[0][1]:
-                            if getattr(operator, case_condition[0][0])(case_condition[0][-1], filtered_param):
+                        if case_condition[0][1]:
+                            if getattr(operator, case_condition[0][0], lambda _, y:bool(y))(case_condition[0][-1], filtered_param):
                                 seen_successfull_pass = True
                                 temp_token_list_here = [[b for b in i] for i in self.token_list]
                                 copy_token_list = copy.deepcopy(temp_token_list_here)
@@ -2907,6 +2937,8 @@ class Parser:
                                 val = current_stack.pop()
                                 if not current_stack:
                                     break
+                                else:
+                                    procedure_namespace.append(new_namespace_line)
                             else:
                                 procedure_namespace.append(new_namespace_line)
 
@@ -2949,9 +2981,11 @@ class Parser:
                             val = current_stack.pop()
                             if not current_stack:
                                 break
+                            else:
+                                procedure_namespace.append(new_namespace_line)
                         else:
                             procedure_namespace.append(new_namespace_line)
-
+                    print 'final_namespace discovered', procedure_namespace
 
                     self.scopes[possible_name.value.value] = Scope(possible_name.value.value, [], [], current_namespace = {'param_num':len(function_params)})
                     self.scopes[possible_name.value.value].scopes['signature'] = Scope('Signature', [], [], current_namespace = {'parameters':', '.join(i if not isinstance(i, list) else i[0] for i in function_params), 'types':', '.join('{}:{}'.format(i, None) if not isinstance(i, list) else "{}:{}".format(i[0], i[1]) for i in function_params)})
@@ -2977,7 +3011,6 @@ class Parser:
                                 break
                         if line is None:
                             raise mylang_errors.ReachedEndOfScopeBlock("missing block terminating character '}'")
-
                         scope_block.append(line)
                         '''
                         current_line_on = next(self.token_list, None)
@@ -3028,9 +3061,11 @@ class Parser:
                         val = current_stack.pop()
                         if not current_stack:
                             break
+                        else:
+                            procedure_namespace.append(new_namespace_line)
                     else:
                         procedure_namespace.append(new_namespace_line)
-
+                print 'procedure namespace discovery', procedure_namespace
 
                 self.scopes[possible_name.value.value] = Scope(possible_name.value.value, [], [], current_namespace = {'param_num':len(function_params)})
                 self.scopes[possible_name.value.value].scopes['signature'] = Scope('Signature', [], [], current_namespace = {'parameters':', '.join(i if not isinstance(i, list) else i[0] for i in function_params), 'types':', '.join('{}:{}'.format(i, None) if not isinstance(i, list) else "{}:{}".format(i[0], i[1]) for i in function_params)})
@@ -3056,7 +3091,6 @@ class Parser:
                             break
                     if line is None:
                         raise mylang_errors.ReachedEndOfScopeBlock("missing block terminating character '}'")
-
                     scope_block.append(line)
                     '''
                     current_check_on = next(self.token_list, None)
