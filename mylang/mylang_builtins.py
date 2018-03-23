@@ -304,9 +304,9 @@ class ArrayList:
     def __str__(self):
         return '{}({})'.format(self.__class__.__name__, str(self.contents))
 
-builtin_checker = {'reverse':[0, [None], [None], False], 'sub':[2, [str, str], ['to_replace', 'target'], True], 'exp':[1, [int], ['pow'], True], 'toFloat':[1, [int], ['denominator'], True], 'splice':[1, [str], ['split_at'], True], 'occurs':[1, [], ['character'], False], 'itemAt':[1, [int], ['index'], False], 'indexOf':[1, [], ['target'], False], 'contains':[1, [], ['target'], False], 'run':[2, [int, int], ['start', 'end'], True], 'length':[0, [None], [None], False], 'updateAt':[2, [int], ['index', 'target'], True], 'addBack':[1, [None], ['to_add'], False], 'addFront':[1, [None], ['to_add'], False], 'extendBack':[1, ['ArrayList'], ['to_add'], True], 'extendFront':[1, ['ArrayList'], ['to_add'], True], 'removeAt':[1, [int], ['target'], True], 'removeItem':[1, [None], ['target'], False]}
+builtin_checker = {'reverse':[0, [None], [None], False], 'sub':[2, [str, str], ['to_replace', 'target'], True], 'exp':[1, [int], ['pow'], True], 'toFloat':[1, [int], ['denominator'], True], 'splice':[1, [str], ['split_at'], True], 'occurs':[1, [], ['character'], False], 'itemAt':[1, [int], ['index'], False], 'indexOf':[1, [], ['target'], False], 'contains':[1, [], ['target'], False], 'run':[2, [int, int], ['start', 'end'], True], 'length':[0, [None], [None], False], 'updateAt':[2, [int], ['index', 'target'], True], 'addBack':[1, [None], ['to_add'], False], 'addFront':[1, [None], ['to_add'], False], 'extendBack':[1, ['ArrayList'], ['to_add'], True], 'extendFront':[1, ['ArrayList'], ['to_add'], True], 'removeAt':[1, [int], ['target'], True], 'removeItem':[1, [None], ['target'], False], 'join':[1, [str], ['spacer'], True]}
 
-type_checker = {'reverse':[str, list, 'ArrayList'], 'sub':[str], 'exp':[int, float], 'toFloat':[int], 'splice':[str], 'occurs':[str, list, 'ArrayList'], 'itemAt':[str, list, 'ArrayList'], 'indexOf':[str, list, 'ArrayList'], 'contains':[str, list, 'ArrayList'], 'run':[str, list, 'ArrayList'], 'length':[list, str, 'ArrayList'], 'updateAt':[str, 'ArrayList'], 'addBack':['ArrayList'], 'addFront':['ArrayList'], 'extendBack':['ArrayList'], 'extendFront':['ArrayList'], 'removeAt':['ArrayList'], 'removeItem':['ArrayList']}
+type_checker = {'reverse':[str, list, 'ArrayList'], 'sub':[str], 'exp':[int, float], 'toFloat':[int], 'splice':[str], 'occurs':[str, list, 'ArrayList'], 'itemAt':[str, list, 'ArrayList'], 'indexOf':[str, list, 'ArrayList'], 'contains':[str, list, 'ArrayList'], 'run':[str, list, 'ArrayList'], 'length':[list, str, 'ArrayList'], 'updateAt':[str, 'ArrayList'], 'addBack':['ArrayList'], 'addFront':['ArrayList'], 'extendBack':['ArrayList'], 'extendFront':['ArrayList'], 'removeAt':['ArrayList'], 'removeItem':['ArrayList'], 'join':['ArrayList']}
 
 def check_param_num(f):
     @functools.wraps(f)
@@ -398,7 +398,7 @@ def removeAt(name, val, target):
 @check_param_num
 @check_type
 def splice(name, val, split_at):
-    return val.split(split_at)
+    return ArrayList([], filled=val.split(split_at))
 
 @check_param_num
 @check_type
@@ -439,9 +439,15 @@ def run(name, val, start, end):
 def length(name, val):
     return len(val)
 
+@check_param_num
+@check_type
+def join(name, val, spacer):
+    for i in val:
+        if not isinstance(i, str):
+            raise mylang_errors.CastingError("Cannot convert type '{}' to type '{}'".format(getattr(i, 'rep', type(i).__name__), str.__name__))
+    return spacer.join(val.contents)
 
-
-builtin_methods = {'str':{'run':run, 'contains':contains, 'indexOf':indexOf, 'itemAt':itemAt, 'occurs':occurs, 'splice':splice, 'sub':sub, 'reverse':reverse, 'length':length, 'updateAt':updateAt}, 'int':{'toFloat':toFloat, 'exp':exp}, 'ArrayList':{'run':run, 'contains':contains, 'indexOf':indexOf, 'itemAt':itemAt, 'occurs':occurs, 'reverse':reverse, 'length':length, 'updateAt':updateAt, 'addBack':addBack, 'addFront':addFront, 'extendFront':extendFront, 'extendBack':extendBack, 'removeAt':removeAt, 'removeItem':removeItem}, 'float':{'exp':exp}, 'bool':{'exp':exp}}
+builtin_methods = {'str':{'run':run, 'contains':contains, 'indexOf':indexOf, 'itemAt':itemAt, 'occurs':occurs, 'splice':splice, 'sub':sub, 'reverse':reverse, 'length':length, 'updateAt':updateAt}, 'int':{'toFloat':toFloat, 'exp':exp}, 'ArrayList':{'run':run, 'contains':contains, 'indexOf':indexOf, 'itemAt':itemAt, 'occurs':occurs, 'reverse':reverse, 'length':length, 'updateAt':updateAt, 'addBack':addBack, 'addFront':addFront, 'extendFront':extendFront, 'extendBack':extendBack, 'removeAt':removeAt, 'removeItem':removeItem, 'join':join}, 'float':{'exp':exp}, 'bool':{'exp':exp}}
 
 
 def get_file_path(path, current = os.getcwd().split('/')[1:]):
