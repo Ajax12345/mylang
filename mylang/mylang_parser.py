@@ -793,7 +793,101 @@ class Procedure:
             current_line, self.current_line_on = itertools.tee(current_line)
 
             start = next(current_line)
+            if start.type == 'SWITCH':
+                test_second = next(current_line, None)
+                if not test_second:
+                    raise mylang_errors.InvalidParameterType("At line {}, near '{}': expecting '('".format(start.value.line_number, start.value.value))
+                start.value.isValid(test_second.value)
+                params = []
+                copy_header_line = [i for i in current_line]
+                temp_copy = copy.deepcopy(copy_header_line)
+                current_line = iter(copy_header_line)
+                while True:
+                    val = self.parse_expression(current_line)
+                    params.append(val)
+                    check_second = next(current_line, None)
 
+                    if not check_second or check_second.type == 'CPAREN' or check_second.type == 'OBRACKET':
+                        break
+                    current_line = iter([check_second]+[i for i in current_line])
+
+                current_stack = collections.deque(['{']) if any(i.type == 'OBRACKET' for i in temp_copy) else collections.deque()
+                switch_namespace = []
+                while True:
+                    current_test_line = next(self.token_list, None)
+                    if not current_test_line:
+                        raise mylang_errors.ReachedEndOfSwitchBlock("Expecting '}'")
+                    the_line = [i for i in current_test_line]
+                    if any(i.type == 'OBRACKET' for i in the_line) and not any(i.type == 'CBRACKET' for i in the_line):
+                        current_stack.append('{')
+                        switch_namespace.append(the_line)
+                    elif any(i.type == 'CBRACKET' for i in the_line) and not any(i.type == 'OBRACKET' for i in the_line):
+                        if not current_stack:
+                            raise mylang_errors.InvalidStartOfSwitchBlock("Expecting '{'")
+                        val = current_stack.pop()
+                        if not current_stack:
+                            break
+                        else:
+                            switch_namespace.append(the_line)
+                    else:
+                        switch_namespace.append(the_line)
+                #print 'switch data: params:', params
+                cases = [list(b) for _, b in itertools.groupby(switch_namespace, key=lambda x:x[0].type == 'CASE' or x[0].type == 'DEFAULT')]
+
+                default_cases = cases[-2:] if cases[-2][0][0].type == 'DEFAULT' else None
+                cases = cases[:-2] if cases[-2][0][0].type == 'DEFAULT' else cases
+                seen_successfull_pass = False
+
+                new_cases = [map(iter, cases[i])+[iter(map(iter, cases[i+1]))] for i in range(0, len(cases), 2)]
+
+                default_cases = default_cases if not default_cases else iter(map(iter, default_cases[-1]))
+                full_switch_case = SwitchCase(new_cases, default_cases, scopes = self.scopes, variables = self.variables, procedures = self.procedures)
+                filtered_param = full_switch_case(params)
+                print 'trying first', (full_switch_case.first_option[0][-1], filtered_param)
+
+                print 'truthy results here', getattr(operator, full_switch_case.first_option[0][0], lambda _, y:bool(y))(full_switch_case.first_option[0][-1], filtered_param)
+                if getattr(operator, full_switch_case.first_option[0][0], lambda _, y:bool(y))(filtered_param, full_switch_case.first_option[0][-1]):
+                    print 'GOT IN HERE HERE'
+                    seen_successfull_pass = True
+                    temp_token_list_here = [[b for b in i] for i in self.token_list]
+                    print 'temp_token_list_here', temp_token_list_here
+                    copy_token_list = copy.deepcopy(temp_token_list_here)
+                    self.token_list = full_switch_case.first_option[-1]
+                    self.parse()
+                    self.token_list = iter(map(iter, copy_token_list))
+                for case_condition in full_switch_case:
+                    if seen_successfull_pass:
+                        print 'case_condition here', case_condition
+                        if getattr(operator, case_condition[0][0], lambda _, y:bool(y))(case_condition[0][-1], filtered_param):
+                            seen_successfull_pass = True
+                            temp_token_list_here = [[b for b in i] for i in self.token_list]
+                            copy_token_list = copy.deepcopy(temp_token_list_here)
+                            self.token_list = case_condition[-1]
+                            self.parse()
+                            self.token_list = iter(map(iter, copy_token_list))
+                        else:
+                            seen_successfull_pass = False
+                    else:
+                        print '()'*10
+                        print 'case_condition check here', case_condition
+                        print '()'*10
+                        if case_condition[0][1]:
+                            if getattr(operator, case_condition[0][0], lambda _, y:bool(y))(case_condition[0][-1], filtered_param):
+                                seen_successfull_pass = True
+                                temp_token_list_here = [[b for b in i] for i in self.token_list]
+                                copy_token_list = copy.deepcopy(temp_token_list_here)
+                                self.token_list = case_condition[-1]
+                                self.parse()
+                                self.token_list = iter(map(iter, copy_token_list))
+                            else:
+                                seen_successfull_pass = False
+                if not seen_successfull_pass:
+                    if full_switch_case.default:
+                        temp_token_list_here = [[b for b in i] for i in self.token_list]
+                        copy_token_list = copy.deepcopy(temp_token_list_here)
+                        self.token_list = full_switch_case.default
+                        self.parse()
+                        self.token_list = iter(map(iter, copy_token_list))
             if start.type == 'VARIABLE':
                 checking = next(current_line)
                 start.value.isValid(checking.value)
@@ -1529,6 +1623,13 @@ class Scope:
             self.parse()
     def __contains__(self, val):
         return val in self.variables
+    @mylang_wrappers.check_existence()
+    def variable_exists(self, var):
+        if var.value.value not in self.variables:
+            if var.value.value not in self.scopes:
+                raise mylang_errors.VariableNotDeclared("At line {}, near '{}': variable '{}' not declared".format(var.value.line_number, var.value.value, var.value.value))
+            return self.scopes[var.value.value]
+        return self.variables[var.value.value]
 
     @classmethod
     @mylang_wrappers.verify_private_procedure(suppress = config.PRIVATE_PROCEDURE_LEVEL)
@@ -1824,6 +1925,101 @@ class Scope:
             current_line, self.current_line_on = itertools.tee(current_line)
 
             start = next(current_line)
+            if start.type == 'SWITCH':
+                test_second = next(current_line, None)
+                if not test_second:
+                    raise mylang_errors.InvalidParameterType("At line {}, near '{}': expecting '('".format(start.value.line_number, start.value.value))
+                start.value.isValid(test_second.value)
+                params = []
+                copy_header_line = [i for i in current_line]
+                temp_copy = copy.deepcopy(copy_header_line)
+                current_line = iter(copy_header_line)
+                while True:
+                    val = self.parse_expression(current_line)
+                    params.append(val)
+                    check_second = next(current_line, None)
+
+                    if not check_second or check_second.type == 'CPAREN' or check_second.type == 'OBRACKET':
+                        break
+                    current_line = iter([check_second]+[i for i in current_line])
+
+                current_stack = collections.deque(['{']) if any(i.type == 'OBRACKET' for i in temp_copy) else collections.deque()
+                switch_namespace = []
+                while True:
+                    current_test_line = next(self.token_list, None)
+                    if not current_test_line:
+                        raise mylang_errors.ReachedEndOfSwitchBlock("Expecting '}'")
+                    the_line = [i for i in current_test_line]
+                    if any(i.type == 'OBRACKET' for i in the_line) and not any(i.type == 'CBRACKET' for i in the_line):
+                        current_stack.append('{')
+                        switch_namespace.append(the_line)
+                    elif any(i.type == 'CBRACKET' for i in the_line) and not any(i.type == 'OBRACKET' for i in the_line):
+                        if not current_stack:
+                            raise mylang_errors.InvalidStartOfSwitchBlock("Expecting '{'")
+                        val = current_stack.pop()
+                        if not current_stack:
+                            break
+                        else:
+                            switch_namespace.append(the_line)
+                    else:
+                        switch_namespace.append(the_line)
+                #print 'switch data: params:', params
+                cases = [list(b) for _, b in itertools.groupby(switch_namespace, key=lambda x:x[0].type == 'CASE' or x[0].type == 'DEFAULT')]
+
+                default_cases = cases[-2:] if cases[-2][0][0].type == 'DEFAULT' else None
+                cases = cases[:-2] if cases[-2][0][0].type == 'DEFAULT' else cases
+                seen_successfull_pass = False
+
+                new_cases = [map(iter, cases[i])+[iter(map(iter, cases[i+1]))] for i in range(0, len(cases), 2)]
+
+                default_cases = default_cases if not default_cases else iter(map(iter, default_cases[-1]))
+                full_switch_case = SwitchCase(new_cases, default_cases, scopes = self.scopes, variables = self.variables, procedures = self.procedures)
+                filtered_param = full_switch_case(params)
+                print 'trying first', (full_switch_case.first_option[0][-1], filtered_param)
+
+                print 'truthy results here', getattr(operator, full_switch_case.first_option[0][0], lambda _, y:bool(y))(full_switch_case.first_option[0][-1], filtered_param)
+                if getattr(operator, full_switch_case.first_option[0][0], lambda _, y:bool(y))(filtered_param, full_switch_case.first_option[0][-1]):
+                    print 'GOT IN HERE HERE'
+                    seen_successfull_pass = True
+                    temp_token_list_here = [[b for b in i] for i in self.token_list]
+                    print 'temp_token_list_here', temp_token_list_here
+                    copy_token_list = copy.deepcopy(temp_token_list_here)
+                    self.token_list = full_switch_case.first_option[-1]
+                    self.parse()
+                    self.token_list = iter(map(iter, copy_token_list))
+                for case_condition in full_switch_case:
+                    if seen_successfull_pass:
+                        print 'case_condition here', case_condition
+                        if getattr(operator, case_condition[0][0], lambda _, y:bool(y))(case_condition[0][-1], filtered_param):
+                            seen_successfull_pass = True
+                            temp_token_list_here = [[b for b in i] for i in self.token_list]
+                            copy_token_list = copy.deepcopy(temp_token_list_here)
+                            self.token_list = case_condition[-1]
+                            self.parse()
+                            self.token_list = iter(map(iter, copy_token_list))
+                        else:
+                            seen_successfull_pass = False
+                    else:
+                        print '()'*10
+                        print 'case_condition check here', case_condition
+                        print '()'*10
+                        if case_condition[0][1]:
+                            if getattr(operator, case_condition[0][0], lambda _, y:bool(y))(case_condition[0][-1], filtered_param):
+                                seen_successfull_pass = True
+                                temp_token_list_here = [[b for b in i] for i in self.token_list]
+                                copy_token_list = copy.deepcopy(temp_token_list_here)
+                                self.token_list = case_condition[-1]
+                                self.parse()
+                                self.token_list = iter(map(iter, copy_token_list))
+                            else:
+                                seen_successfull_pass = False
+                if not seen_successfull_pass:
+                    if full_switch_case.default:
+                        temp_token_list_here = [[b for b in i] for i in self.token_list]
+                        copy_token_list = copy.deepcopy(temp_token_list_here)
+                        self.token_list = full_switch_case.default
+                        self.parse()
+                        self.token_list = iter(map(iter, copy_token_list))
             if start.type == 'VARIABLE':
                 checking = next(current_line)
                 start.value.isValid(checking.value)
