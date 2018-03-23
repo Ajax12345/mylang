@@ -1059,7 +1059,7 @@ class Procedure:
                 ##print 'CHECKING FUNCTION_PARAMS here for function {}'.format(possible_name.value.value), function_params
                 current_stack = collections.deque(['{']) if not warnings else collections.deque()
                 procedure_namespace = []
-                start_with = next(self.token_list)
+                
                 while True:
                     print '-'*20
                     print 'current_stack', current_stack
@@ -2841,6 +2841,7 @@ class Parser:
 
                 if checking.type == 'ASSIGN':
                     to_store = self.parse_assign(current_line)
+
                     self.variables[start.value.value] = to_store
 
                     self.scopes[start.value.value] = Scope(start.value.value, [], [], current_namespace = dict([(i, getattr(to_store, i)()) for i in ['upper', 'lower', 'capitalize', 'isupper', 'islower']]+[('type', type(to_store).__name__)]) if isinstance(to_store, str) else dict([('increment', to_store+1), ('squared', pow(to_store, 2)), ('type', type(to_store).__name__)]) if isinstance(to_store, int) else {'type':getattr(to_store, 'rep', type(to_store).__name__)}, builtins = mylang_builtins.builtin_methods[getattr(to_store, 'rep', type(to_store).__name__)])
