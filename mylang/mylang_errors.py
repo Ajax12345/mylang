@@ -78,3 +78,6 @@ class ObjectNotDeclared(Exception):
 
 class InvalidSwitchStatement(Exception):
     pass
+
+class CastingError(Exception):
+    pass
