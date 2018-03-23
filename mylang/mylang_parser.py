@@ -43,7 +43,7 @@ class SwitchCase:
         path = []
         to_compare = None
         start = next(header, None)
-        print 'start here', start
+        #print 'start here', start
         if not start:
             raise mylang_errors.InvalidSyntax("Invalid case header")
         if start.type == 'CASE':
@@ -67,7 +67,7 @@ class SwitchCase:
                             raise mylang_errors.InvalidSwitchStatement("At line {}, near '{}': expecting ':' at end of switch declaration".format(temp_header[-1].value.line_number, temp_header[-1].value.value))
                         return path, self.parse_expression(iter([check_final]+temp_header[:-1]))
                 if check_next1.value.value == 'optional':
-                    print 'IN HERE IN OPTIONAl'
+                    #print 'IN HERE IN OPTIONAl'
                     path.append(check_next1.value.value)
                     check_next2 = next(header, None)
                     if not check_next2:
@@ -91,7 +91,7 @@ class SwitchCase:
     def parse_expression(self, line):
         operation_converters = {'PLUS':lambda x, y:x+y, 'BAR':lambda x,y:x-y, 'STAR':lambda x, y:x*y, 'FORWARDSLASH':lambda x, y:x/y, 'MODULO':lambda x, y:x%y}
         current = next(line, None)
-        print 'current last', current
+        #print 'current last', current
         if not current:
             return None
         if current.type == 'VARIABLE':
@@ -128,7 +128,7 @@ class SwitchCase:
                     if not can_continue or can_continue.type == 'CPAREN':
                         break
                     line = iter([can_continue]+[i for i in line])
-                print 'PARAMS HERE', params
+                #print 'PARAMS HERE', params
                 result, namespace = self.procedures[current.value.value](*params)
                 self.variables = namespace if namespace else self.variables
                 checking_next_v = next(line, None)
@@ -202,7 +202,7 @@ class SwitchCase:
                 while path:
                     try:
                         new_val = current_value_attr[path[0]]
-                        print 'in try block', new_val
+                        #print 'in try block', new_val
                     except:
                         if path[0] not in current_value_attr.scopes:
                             raise mylang_errors.AttributeNotFound("At line {}, near '{}':scope '{}' has no attribute '{}'".format(current_attr.value.line_number, current_attr.value.value, start_scope, path[0]))
@@ -307,7 +307,7 @@ class ArrayList:
         self.line = iter([current]+[i for i in self.line])
         while True:
             check_current = next(self.line, None)
-            print 'check_current 1', check_current
+            #print 'check_current 1', check_current
             #print 'check_current', check_current
             if not check_current or check_current.type == 'CBRACKET':
                 break
@@ -350,7 +350,7 @@ class ArrayList:
     def parse_expression(self, line):
         operation_converters = {'PLUS':lambda x, y:x+y, 'BAR':lambda x,y:x-y, 'STAR':lambda x, y:x*y, 'FORWARDSLASH':lambda x, y:x/y, 'MODULO':lambda x, y:x%y}
         current = next(line, None)
-        print 'current here', current
+        #print 'current here', current
         #print 'current here', current
         if not current:
             return None
@@ -390,7 +390,7 @@ class ArrayList:
                     if not can_continue or can_continue.type == 'CPAREN':
                         break
                     self.line = iter([can_continue]+[i for i in line])
-                print 'PARAMS HERE', params
+                #print 'PARAMS HERE', params
                 result, namespace = self.procedures[current.value.value](*params)
                 self.variables = namespace if namespace else self.variables
                 checking_next_v = next(line, None)
@@ -461,7 +461,7 @@ class ArrayList:
                 while path:
                     try:
                         new_val = current_value_attr[path[0]]
-                        print 'in try block', new_val
+                        #print 'in try block', new_val
                     except:
                         if path[0] not in current_value_attr.scopes:
                             raise mylang_errors.AttributeNotFound("At line {}, near '{}':scope '{}' has no attribute '{}'".format(current_attr.value.line_number, current_attr.value.value, start_scope, path[0]))
@@ -517,11 +517,11 @@ class Procedure:
         self.is_private = kwargs.get('is_private', False)
         self.return_type = kwargs.get('return_type')
         self.name = name
-        print 'transfuring here', namespace
-        #print 'in constructor for procedure {name} with visibility of {is_private}'.format(**self.__dict__)
+        #print 'transfuring here', namespace
+        ##print 'in constructor for procedure {name} with visibility of {is_private}'.format(**self.__dict__)
         self.procedures = Procedures()
         if kwargs.get('current_namespace_procedures'):
-            print 'IN HERE WITH NEW PROCEDURES', kwargs.get('current_namespace_procedures')
+            #print 'IN HERE WITH NEW PROCEDURES', kwargs.get('current_namespace_procedures')
             self.procedures.update_procedures(kwargs.get('current_namespace_procedures'))
         #self.procedures[self.name] =
         self.to_return = []
@@ -578,7 +578,7 @@ class Procedure:
                     if not can_continue or can_continue.type == 'CPAREN':
                         break
                     line = iter([can_continue]+[i for i in line])
-                print 'PARAMS HERE', params
+                #print 'PARAMS HERE', params
                 result, namespace = self.procedures[current.value.value](*params)
                 self.variables = namespace if namespace else self.variables
                 checking_next_v = next(line, None)
@@ -647,7 +647,7 @@ class Procedure:
                 while path:
                     try:
                         new_val = current_value_attr[path[0]]
-                        print 'in try block', new_val
+                        #print 'in try block', new_val
                     except:
                         if path[0] not in current_value_attr.scopes:
                             raise mylang_errors.AttributeNotFound("At line {}, near '{}':scope '{}' has no attribute '{}'".format(current_attr.value.line_number, current_attr.value.value, start_scope, path[0]))
@@ -712,7 +712,7 @@ class Procedure:
                     #print 'returning here'
                     return current, mylang_warnings.NoHeaderSeen, final_check.value.value
                 final_check.value.isValid(last_check.value)
-                print 'returning here'
+                #print 'returning here'
                 return current, None, final_check.value.value
         if current_t.type == 'VARIABLE':
             check_next = next(header_line, None)
@@ -793,6 +793,60 @@ class Procedure:
             current_line, self.current_line_on = itertools.tee(current_line)
 
             start = next(current_line)
+            if start.type == 'PRINT':
+                check_next = next(current_line, None)
+                if not check_next:
+                    print "myLang console OUT: \n"
+                else:
+                    current_line = iter([check_next]+[i for i in current_line])
+                    final_result = self.parse_assign(current_line)
+                    print 'myLang console OUT: ', final_result
+            if start.type == 'FOR':
+                check_next = next(current_line, None)
+                if not check_next:
+                    raise mylang_errors.InvalidSyntax("At line {}, near '{}', expecting iterative value".format(start.value.line_number, start.value.value))
+                start.value.isValid(check_next.value)
+                temp_current = [check_next]+[i for i in current_line]
+                top_at = [i for i, a in enumerate(temp_current) if a.type == 'TORETURN']
+                if not top_at:
+                    raise mylang_errors.InvalidSyntax("Expecting '->' in for-loop header")
+                full_val = self.parse_expression(iter(temp_current[:top_at[0]]))
+                parans_seen = collections.deque(['{']) if any(i.type == 'OBRACKET' for i in temp_current[top_at[0]+1:]) else collections.deque()
+                pipe_to = [i for i in temp_current[top_at[0]+1:] if i.type == 'VARIABLE']
+
+                if not pipe_to:
+                    raise mylang_errors.InvalidSyntax("At line {}, near '->': expecting iterable storage variable".format(check_next.value.line_number))
+                for_loop_namespace = []
+                while True:
+                    c_line = next(self.token_list, None)
+                    if not c_line:
+                        raise mylang_errors.InvalidEndOfRepetitiveBlock("Expecting '}'")
+                    full_line = [i for i in c_line]
+                    if any(i.type == 'OBRACKET' for i in full_line) and not any(i.type == 'CBRACKET' for i in full_line):
+                        parans_seen.append('{')
+                        for_loop_namespace.append(full_line)
+                    elif any(i.type == 'CBRACKET' for i in full_line) and not any(i.type == 'OBRACKET' for i in full_line):
+                        if not parans_seen:
+                            raise mylang_errors.InvalidStartOfSwitchBlock("Expecting a {")
+                        val = parans_seen.pop()
+                        if not parans_seen:
+                            break
+                        else:
+                            for_loop_namespace.append(full_line)
+                    else:
+                        for_loop_namespace.append(full_line)
+
+
+                store_current_token_list = [[b for b in i] for i in self.token_list]
+                copy_current_token_list = copy.deepcopy(store_current_token_list)
+                for current_val_on_iter in getattr(full_val, 'contents', range(full_val) if isinstance(full_val, int) else full_val):
+                    self.variables[pipe_to[0].value.value] = current_val_on_iter
+                    self.scopes[pipe_to[0].value.value] = Scope(pipe_to[0].value.value, [], [], current_namespace = dict([(i, getattr(current_val_on_iter, i)()) for i in ['upper', 'lower', 'capitalize', 'isupper', 'islower']]+[('type', type(current_val_on_iter).__name__)]) if isinstance(current_val_on_iter, str) else dict([('increment', current_val_on_iter+1), ('squared', pow(current_val_on_iter, 2)), ('type', type(current_val_on_iter).__name__), ('toString', str(current_val_on_iter))]) if isinstance(current_val_on_iter, int) else {'type':getattr(current_val_on_iter, 'rep', type(current_val_on_iter).__name__)}, builtins = mylang_builtins.builtin_methods[getattr(current_val_on_iter, 'rep', type(current_val_on_iter).__name__)])
+
+                    self.token_list = iter(map(iter, for_loop_namespace))
+                    self.parse()
+                    self.token_list = iter(map(iter, copy_current_token_list))
+
             if start.type == 'SWITCH':
                 test_second = next(current_line, None)
                 if not test_second:
@@ -843,21 +897,21 @@ class Procedure:
                 default_cases = default_cases if not default_cases else iter(map(iter, default_cases[-1]))
                 full_switch_case = SwitchCase(new_cases, default_cases, scopes = self.scopes, variables = self.variables, procedures = self.procedures)
                 filtered_param = full_switch_case(params)
-                print 'trying first', (full_switch_case.first_option[0][-1], filtered_param)
+                #print 'trying first', (full_switch_case.first_option[0][-1], filtered_param)
 
-                print 'truthy results here', getattr(operator, full_switch_case.first_option[0][0], lambda _, y:bool(y))(full_switch_case.first_option[0][-1], filtered_param)
+                #print 'truthy results here', getattr(operator, full_switch_case.first_option[0][0], lambda _, y:bool(y))(full_switch_case.first_option[0][-1], filtered_param)
                 if getattr(operator, full_switch_case.first_option[0][0], lambda _, y:bool(y))(filtered_param, full_switch_case.first_option[0][-1]):
-                    print 'GOT IN HERE HERE'
+                    #print 'GOT IN HERE HERE'
                     seen_successfull_pass = True
                     temp_token_list_here = [[b for b in i] for i in self.token_list]
-                    print 'temp_token_list_here', temp_token_list_here
+                    #print 'temp_token_list_here', temp_token_list_here
                     copy_token_list = copy.deepcopy(temp_token_list_here)
                     self.token_list = full_switch_case.first_option[-1]
                     self.parse()
                     self.token_list = iter(map(iter, copy_token_list))
                 for case_condition in full_switch_case:
                     if seen_successfull_pass:
-                        print 'case_condition here', case_condition
+                        #print 'case_condition here', case_condition
                         if getattr(operator, case_condition[0][0], lambda _, y:bool(y))(case_condition[0][-1], filtered_param):
                             seen_successfull_pass = True
                             temp_token_list_here = [[b for b in i] for i in self.token_list]
@@ -868,9 +922,9 @@ class Procedure:
                         else:
                             seen_successfull_pass = False
                     else:
-                        print '()'*10
-                        print 'case_condition check here', case_condition
-                        print '()'*10
+                        #print '()'*10
+                        #print 'case_condition check here', case_condition
+                        #print '()'*10
                         if case_condition[0][1]:
                             if getattr(operator, case_condition[0][0], lambda _, y:bool(y))(case_condition[0][-1], filtered_param):
                                 seen_successfull_pass = True
@@ -899,7 +953,7 @@ class Procedure:
                     checking.value.isValid(current_param.value)
                     if current_param.type == 'CPAREN':
                         if start.value.value == self.name:
-                            print 'GOt TO HERE'
+                            #print 'GOt TO HERE'
                             result, namespace = self()
                         else:
                             result, namespace = self.procedures[start.value.value]()
@@ -985,7 +1039,7 @@ class Procedure:
                                 try:
 
                                     builtin_procedure = mylang_builtins.builtin_methods[getattr(starting_base, 'rep', type(starting_base).__name__)]
-                                    print 'builtin_procedure here', builtin_procedure
+                                    #print 'builtin_procedure here', builtin_procedure
                                 except (KeyError, IndexError):
                                     pass
 
@@ -1135,7 +1189,7 @@ class Procedure:
                         else:
                             scope_block.append(line)
 
-                        print 'scope_block here', scope_block
+                        #print 'scope_block here', scope_block
                     self.scopes[name] = Scope(name, scope_block, params, current_namespace = self.variables)
             if start.type == 'PROCEDURE':
                 possible_name = next(current_line, None)
@@ -1147,24 +1201,24 @@ class Procedure:
                 if not possible_start:
                     raise mylang_errors.InvalidEndOfDeclaration("At line {}, near '{}': expecting a scope or procedure declaration".format(start.value.line_number, possible_name.value.value))
                 possible_name.value.isValid(possible_start.value)
-                ##print 'CURRENT LINE FOR function {}'.format(possible_name.value.value), current_line
+                ###print 'CURRENT LINE FOR function {}'.format(possible_name.value.value), current_line
 
                 function_params, warnings, return_type = self.parse_procedure_header(current_line)
-                ##print 'CHECKING FUNCTION_PARAMS here for function {}'.format(possible_name.value.value), function_params
+                ###print 'CHECKING FUNCTION_PARAMS here for function {}'.format(possible_name.value.value), function_params
                 current_stack = collections.deque(['{']) if not warnings else collections.deque()
                 procedure_namespace = []
 
                 while True:
-                    print '-'*20
-                    print 'current_stack', current_stack
-                    print 'procedure_namespace here', procedure_namespace
-                    print '-'*20
+                    #print '-'*20
+                    #print 'current_stack', current_stack
+                    #print 'procedure_namespace here', procedure_namespace
+                    #print '-'*20
                     current_namespace_line = next(self.token_list, None)
 
                     if not current_namespace_line:
                         raise mylang_errors.ReachedEndOfProcedureBlock("Expecting a close bracket for procedure '{}'".format(possible_name.value.value))
                     new_namespace_line = [i for i in current_namespace_line]
-                    print 'new_namespace_line', new_namespace_line
+                    #print 'new_namespace_line', new_namespace_line
 
                     if any(i.type == 'OBRACKET' for i in new_namespace_line) and not any(i.type == 'CBRACKET' for i in new_namespace_line):
                         current_stack.append('{')
@@ -1195,9 +1249,9 @@ class Procedure:
                     if not check_next:
                         raise mylang_errors.ReachedEndOfScopeBlock("Expecting '}'")
                     line = [i for i in check_next]
-                    print '$'*20
-                    print 'line here', line
-                    print '$'*20
+                    #print '$'*20
+                    #print 'line here', line
+                    #print '$'*20
                     if any(i.type == 'OBRACKET' for i in line) and not any(i.type == 'CBRACKET' for i in line):
                         brackets_seen.append('{')
                         scope_block.append(line)
@@ -1211,7 +1265,7 @@ class Procedure:
                             scope_block.append(line)
                     else:
                         scope_block.append(line)
-                print 'IN HERE @@', scope_block
+                #print 'IN HERE @@', scope_block
                 self.scopes[name] = Scope(name, scope_block, params)
 
             self.parse()
@@ -1298,7 +1352,7 @@ class Procedure:
                 line = iter([test_second_line]+[i for i in line])
                 #currently, here
                 if current.value.value in self.procedures or current.value.value == self.name:
-                    print 'IN HEREQQQQ with procedure name ', current.value.value
+                    #print 'IN HEREQQQQ with procedure name ', current.value.value
                     testing_next = next(line, None)
                     if not testing_next:
                         raise mylang_errors.InvalidParameterType("At line {}: invalid syntax".format(current.value.line_number))
@@ -1399,7 +1453,7 @@ class Procedure:
                                     test = current_scope_1.procedures[temp_path.value.value]
                                 except:
                                     if len(path_copy) == 1:
-                                        print (path_copy, temp_path.value.value, current_scope_1)
+                                        #print (path_copy, temp_path.value.value, current_scope_1)
                                         return self.scopes[path_copy[-1]].builtins[temp_path.value.value](path_copy[-1], current_scope_1)
                                     scope_object = self.scopes if path_copy[0] not in self.variables else self.variables
 
@@ -1424,7 +1478,7 @@ class Procedure:
                                     break
                                 line = iter([check_next_4]+[i for i in line])
 
-                            #print 'current_params_check here for {}'.format(path[-1]), current_params_check
+                            ##print 'current_params_check here for {}'.format(path[-1]), current_params_check
 
                             current_scope_1 = self.scopes if path[0] not in self.variables else self.variables
                             path_copy = copy.deepcopy(list(path))
@@ -1437,7 +1491,7 @@ class Procedure:
                                 test = current_scope_1.procedures[temp_path.value.value]
                             except:
                                 if len(path_copy) == 1:
-                                    print (path_copy, temp_path.value.value, current_scope_1)
+                                    #print (path_copy, temp_path.value.value, current_scope_1)
                                     return self.scopes[path_copy[-1]].builtins[temp_path.value.value](path_copy[-1], current_scope_1, *current_params_check)
                                 scope_object = self.scopes if path_copy[0] not in self.variables else self.variables
 
@@ -1479,12 +1533,12 @@ class Procedure:
                     try:
                         if val in scope_result:
                             scope_result = scope_result[val]
-                            print 'scope_result for testing', scope_result
+                            #print 'scope_result for testing', scope_result
                         else:
                             if not path:
                                 if val in store_last[-2].scopes[string_last[-1]]:
-                                    print 'in here'
-                                    print 'val', val
+                                    #print 'in here'
+                                    #print 'val', val
 
                                     scope_result = store_last[-2].scopes[string_last[-1]][val]
                                 else:
@@ -1569,7 +1623,7 @@ class Procedure:
     def __call__(self, *args):
         self.check_namespace_copy = copy.deepcopy(self.check_namespace_copy)
         self.token_list = iter(map(iter, self.check_namespace_copy))
-        #print self.check_namespace_copy if hasattr(self, 'recursive_flag') else 'no recursion yet'
+        ##print self.check_namespace_copy if hasattr(self, 'recursive_flag') else 'no recursion yet'
         if args:
 
             self.variables.update(dict(zip([i if not isinstance(i, list) else i[0] for i in self.params], args)))
@@ -1603,11 +1657,11 @@ class Scope:
         self.__scope_name__ = name
         self.params = params
         self.builtins = kwargs.get('builtins', {})
-        print '======namespace for scope===='
-        for i in namespace:
-            print i
-        print '='*20
-        #print 'builtins here for name {}'.format(name), self.builtins
+        #print '======namespace for scope===='
+        
+            #print i
+        #print '='*20
+        ##print 'builtins here for name {}'.format(name), self.builtins
 
         self.private_variables = []
         self.token_list = iter(map(iter, namespace))
@@ -1639,7 +1693,7 @@ class Scope:
     def parse_expression(self, line):
         operation_converters = {'PLUS':lambda x, y:x+y, 'BAR':lambda x,y:x-y, 'STAR':lambda x, y:x*y, 'FORWARDSLASH':lambda x, y:x/y, 'MODULO':lambda x, y:x%y}
         current = next(line, None)
-        print 'current last', current
+        #print 'current last', current
         if not current:
             return None
         if current.type == 'VARIABLE':
@@ -1676,7 +1730,7 @@ class Scope:
                     if not can_continue or can_continue.type == 'CPAREN':
                         break
                     line = iter([can_continue]+[i for i in line])
-                print 'PARAMS HERE', params
+                #print 'PARAMS HERE', params
                 result, namespace = self.procedures[current.value.value](*params)
                 self.variables = namespace if namespace else self.variables
                 checking_next_v = next(line, None)
@@ -1750,7 +1804,7 @@ class Scope:
                 while path:
                     try:
                         new_val = current_value_attr[path[0]]
-                        print 'in try block', new_val
+                        #print 'in try block', new_val
                     except:
                         if path[0] not in current_value_attr.scopes:
                             raise mylang_errors.AttributeNotFound("At line {}, near '{}':scope '{}' has no attribute '{}'".format(current_attr.value.line_number, current_attr.value.value, start_scope, path[0]))
@@ -1833,7 +1887,7 @@ class Scope:
                 return current, mylang_warnings.NoHeaderSeen, None
             current_t.value.isValid(second.value)
             if second.type == 'OBRACKET':
-                #print 'returning here'
+                ##print 'returning here'
                 return current, None, None
             if second.type == 'TORETURN':
                 final_check = next(header_line, None)
@@ -1841,10 +1895,10 @@ class Scope:
                     raise mylang_errors.InvalidEndOfDeclaration("At line {}, near '{}': a return type must be specified".format(second.value.line_number, second.value.value))
                 last_check = next(header_line, None)
                 if not last_check:
-                    #print 'returning here'
+                    ##print 'returning here'
                     return current, mylang_warnings.NoHeaderSeen, final_check.value.value
                 final_check.value.isValid(last_check.value)
-                #print 'returning here'
+                ##print 'returning here'
                 return current, None, final_check.value.value
         if current_t.type == 'VARIABLE':
             check_next = next(header_line, None)
@@ -1895,7 +1949,7 @@ class Scope:
                     raise mylang_errors.InvalidEndOfDeclaration("At line {}, near {}: reached invalid end of procedure declaration".format(check_next.value.line_number, check_next.value.value))
 
                 testing_second.value.isValid(final_check.value)
-                #print 'last here', testing_second.value, final_check.value
+                ##print 'last here', testing_second.value, final_check.value
 
                 if final_check.type == 'COMMA':
                     return self.parse_procedure_header(header_line, current+[[current_t.value.value, testing_second.value.value]])
@@ -1925,6 +1979,14 @@ class Scope:
             current_line, self.current_line_on = itertools.tee(current_line)
 
             start = next(current_line)
+            if start.type == 'PRINT':
+                check_next = next(current_line, None)
+                if not check_next:
+                    print "myLang console OUT: \n"
+                else:
+                    current_line = iter([check_next]+[i for i in current_line])
+                    final_result = self.parse_assign(current_line)
+                    print 'myLang console OUT: ', final_result
             if start.type == 'SWITCH':
                 test_second = next(current_line, None)
                 if not test_second:
@@ -1975,21 +2037,21 @@ class Scope:
                 default_cases = default_cases if not default_cases else iter(map(iter, default_cases[-1]))
                 full_switch_case = SwitchCase(new_cases, default_cases, scopes = self.scopes, variables = self.variables, procedures = self.procedures)
                 filtered_param = full_switch_case(params)
-                print 'trying first', (full_switch_case.first_option[0][-1], filtered_param)
+                #print 'trying first', (full_switch_case.first_option[0][-1], filtered_param)
 
-                print 'truthy results here', getattr(operator, full_switch_case.first_option[0][0], lambda _, y:bool(y))(full_switch_case.first_option[0][-1], filtered_param)
+                #print 'truthy results here', getattr(operator, full_switch_case.first_option[0][0], lambda _, y:bool(y))(full_switch_case.first_option[0][-1], filtered_param)
                 if getattr(operator, full_switch_case.first_option[0][0], lambda _, y:bool(y))(filtered_param, full_switch_case.first_option[0][-1]):
-                    print 'GOT IN HERE HERE'
+                    #print 'GOT IN HERE HERE'
                     seen_successfull_pass = True
                     temp_token_list_here = [[b for b in i] for i in self.token_list]
-                    print 'temp_token_list_here', temp_token_list_here
+                    #print 'temp_token_list_here', temp_token_list_here
                     copy_token_list = copy.deepcopy(temp_token_list_here)
                     self.token_list = full_switch_case.first_option[-1]
                     self.parse()
                     self.token_list = iter(map(iter, copy_token_list))
                 for case_condition in full_switch_case:
                     if seen_successfull_pass:
-                        print 'case_condition here', case_condition
+                        #print 'case_condition here', case_condition
                         if getattr(operator, case_condition[0][0], lambda _, y:bool(y))(case_condition[0][-1], filtered_param):
                             seen_successfull_pass = True
                             temp_token_list_here = [[b for b in i] for i in self.token_list]
@@ -2000,9 +2062,9 @@ class Scope:
                         else:
                             seen_successfull_pass = False
                     else:
-                        print '()'*10
-                        print 'case_condition check here', case_condition
-                        print '()'*10
+                        #print '()'*10
+                        #print 'case_condition check here', case_condition
+                        #print '()'*10
                         if case_condition[0][1]:
                             if getattr(operator, case_condition[0][0], lambda _, y:bool(y))(case_condition[0][-1], filtered_param):
                                 seen_successfull_pass = True
@@ -2046,7 +2108,7 @@ class Scope:
                             if not checking_last:
                                 break
                             current_line = iter([checking_last]+[i for i in current_line])
-                        #print "final params here", full_params
+                        ##print "final params here", full_params
                         result, namespace = self.procedures[start.value.value](*full_params)
                         if result:
                             raise mylang_errors.InvalidProcedureReturn("At line {}, near '{}': procedure '{}' is not void".format(start.value.line_number, start.value.value, start.value.value))
@@ -2055,7 +2117,7 @@ class Scope:
 
                 if checking.type == 'ASSIGN':
                     to_store = self.parse_assign(current_line)
-                    print 'storing string?', to_store, start.value.value
+                    #print 'storing string?', to_store, start.value.value
                     self.variables[start.value.value] = to_store
 
                     self.scopes[start.value.value] = Scope(start.value.value, [], [], current_namespace = dict([(i, getattr(to_store, i)()) for i in ['upper', 'lower', 'capitalize', 'isupper', 'islower']]+[('type', 'str')]) if isinstance(to_store, str) else dict([('increment', to_store+1), ('squared', pow(to_store, 2)), ('toString', str(to_store)), ('type', 'int')]) if isinstance(to_store, int) else {'type':getattr(to_store, 'rep', type(to_store).__name__)}, builtins = mylang_builtins.builtin_methods[getattr(to_store, 'rep', type(to_store).__name__)])
@@ -2084,7 +2146,7 @@ class Scope:
             if start.type == 'PRIVATE':
 
                 checking_next = next(current_line, None)
-                print 'IN HERE 111', checking_next
+                #print 'IN HERE 111', checking_next
                 if not checking_next:
                     raise mylang_errors.InvalidSyntax("At line {}, near '{}': expecting a variable name".format(start.value.line_number, start.value.value))
                 if checking_next.type == 'PRIVATEPROCEDURE':
@@ -2106,8 +2168,8 @@ class Scope:
                     return_result = self.parse_assign(current_line)
                     self.variables[checking_next.value.value] = return_result
                     self.scopes[start.value.value] = Scope(start.value.value, [], [], current_namespace = dict([(i, getattr(return_result, i)()) for i in ['upper', 'lower', 'capitalize', 'isupper', 'islower']]+[('type', 'str')]) if isinstance(return_result, str) else dict([('increment', return_result+1), ('squared', pow(return_result, 2)), ('type', 'int')]) if isinstance(return_result, int) else {'type':type(return_result).__name__}, builtins = mylang_builtins.builtin_methods[type(return_result).__name__] if type(return_result).__name__ in mylang_builtins.builtin_methods else {})
-                    print 'self.variables here', self.variables
-                    print 'private variable name: {}'.format(checking_next.value.value)
+                    #print 'self.variables here', self.variables
+                    #print 'private variable name: {}'.format(checking_next.value.value)
             if start.type == 'GLOBAL':
                 next_start = next(current_line, None)
 
@@ -2129,8 +2191,8 @@ class Scope:
                             raise mylang_errors.InvalidEndOfDeclaration("At line {}, near '{}': expecting a scope or procedure declaration".format(next_start_1.value.line_number, possible_name.value.value))
                         possible_name.value.isValid(possible_start.value)
                         function_params, warnings, return_type = self.parse_procedure_header(current_line)
-                        #print "procedure name is: {}, params are: {}, warnings include: {}, return_type is {}".format(possible_name.value.value, function_params, warnings, return_type)
-                        #print "procedure name is: {}, params are: {}, warnings include: {}, return_type is {}".format(possible_name.value.value, function_params, warnings, return_type)
+                        ##print "procedure name is: {}, params are: {}, warnings include: {}, return_type is {}".format(possible_name.value.value, function_params, warnings, return_type)
+                        ##print "procedure name is: {}, params are: {}, warnings include: {}, return_type is {}".format(possible_name.value.value, function_params, warnings, return_type)
                         current_stack = collections.deque(['{']) if not warnings else collections.deque()
                         procedure_namespace = []
                         while True:
@@ -2161,7 +2223,7 @@ class Scope:
                         self.procedures[possible_name.value.value] = Procedure(possible_name.value.value, function_params, procedure_namespace, can_mutate = True, current_namespace = self.variables, return_type = return_type, is_private = self.seen_procedure_private, current_namespace_procedures = self.procedures)
                         self.seen_procedure_private = False
                 if next_start.type == 'PROCEDURE':
-                    print 'in scope procedure declaration'
+                    #print 'in scope procedure declaration'
                     possible_name = next(current_line, None)
 
                     self.possible_name = possible_name
@@ -2173,10 +2235,10 @@ class Scope:
                         raise mylang_errors.InvalidEndOfDeclaration("At line {}, near '{}': expecting a scope or procedure declaration".format(next_start.value.line_number, possible_name.value.value))
                     possible_name.value.isValid(possible_start.value)
                     temp_current_line = [i for i in current_line]
-                    #print 'CURRENT LINE FOR function {}'.format(possible_name.value.value), temp_current_line
+                    ##print 'CURRENT LINE FOR function {}'.format(possible_name.value.value), temp_current_line
                     current_line = iter(temp_current_line)
                     function_params, warnings, return_type = self.parse_procedure_header(current_line)
-                    #print 'CHECKING FUNCTION_PARAMS here for function {}'.format(possible_name.value.value), function_params
+                    ##print 'CHECKING FUNCTION_PARAMS here for function {}'.format(possible_name.value.value), function_params
 
                     current_stack = collections.deque(['{']) if not warnings else collections.deque()
                     procedure_namespace = []
@@ -2244,10 +2306,10 @@ class Scope:
                 if not possible_start:
                     raise mylang_errors.InvalidEndOfDeclaration("At line {}, near '{}': expecting a scope or procedure declaration".format(start.value.line_number, possible_name.value.value))
                 possible_name.value.isValid(possible_start.value)
-                #print 'CURRENT LINE FOR function {}'.format(possible_name.value.value), current_line
+                ##print 'CURRENT LINE FOR function {}'.format(possible_name.value.value), current_line
 
                 function_params, warnings, return_type = self.parse_procedure_header(current_line)
-                #print 'CHECKING FUNCTION_PARAMS here for function {}'.format(possible_name.value.value), function_params
+                ##print 'CHECKING FUNCTION_PARAMS here for function {}'.format(possible_name.value.value), function_params
 
                 current_stack = collections.deque(['{']) if not warnings else collections.deque()
                 procedure_namespace = []
@@ -2285,11 +2347,11 @@ class Scope:
                 scope_block = []
 
                 brackets_seen = collections.deque(['{']) if not temp_flag else collections.deque()
-                print 'original bracket here sd', brackets_seen
+                #print 'original bracket here sd', brackets_seen
                 while True:
-                    print '+'*20
-                    print 'brackets_seen here', brackets_seen
-                    print '+'*20
+                    #print '+'*20
+                    #print 'brackets_seen here', brackets_seen
+                    #print '+'*20
                     current_line = next(self.token_list, None)
                     if not current_line:
                         raise mylang_errors.ReachedEndOfScopeBlock("missing block terminating character '}'")
@@ -2387,7 +2449,7 @@ class Scope:
                     current_result = self.parse_expression(line)
                     full_params_for_object.append(current_result)
                     check_here = next(line, None)
-                    print 'checking here', check_here
+                    #print 'checking here', check_here
                     if not check_here or check_here.type == 'CPAREN':
                         break
                     line = iter([check_here]+[i for i in line])
@@ -2435,7 +2497,7 @@ class Scope:
                                     test = current_scope_1.procedures[temp_path.value.value]
                                 except:
                                     if len(path_copy) == 1:
-                                        print (path_copy, temp_path.value.value, current_scope_1)
+                                        #print (path_copy, temp_path.value.value, current_scope_1)
                                         return self.scopes[path_copy[-1]].builtins[temp_path.value.value](path_copy[-1], current_scope_1)
                                     scope_object = self.scopes if path_copy[0] not in self.variables else self.variables
 
@@ -2453,7 +2515,7 @@ class Scope:
                             current_params_check = []
                             while True:
                                 result_here_1 = self.parse_expression(line)
-                                print 'result_here_1', result_here_1
+                                #print 'result_here_1', result_here_1
                                 current_params_check.append(result_here_1)
                                 check_next_4 = next(line, None)
                                 if not check_next_4:
@@ -2542,7 +2604,7 @@ class Scope:
             if test_final.type in operation_converters:
                 if test_final.type == 'STAR':
                     second = next(line, None)
-                    print 'SECOND HERE', second
+                    #print 'SECOND HERE', second
                     if second.type != 'DIGIT' and second.type != 'VARIABLE':
 
                         raise mylang_errors.IncompatableTypes("At line {}, cannot multiply type 'INT' to type {}".format(second.value.line_number, type(second.value.value).__name__))
@@ -2636,7 +2698,7 @@ class Parser:
                 return current, mylang_warnings.NoHeaderSeen, None
             current_t.value.isValid(second.value)
             if second.type == 'OBRACKET':
-                print 'returning here'
+                #print 'returning here'
                 return current, None, None
             if second.type == 'TORETURN':
                 final_check = next(header_line, None)
@@ -2644,10 +2706,10 @@ class Parser:
                     raise mylang_errors.InvalidEndOfDeclaration("At line {}, near '{}': a return type must be specified".format(second.value.line_number, second.value.value))
                 last_check = next(header_line, None)
                 if not last_check:
-                    print 'returning here'
+                    #print 'returning here'
                     return current, mylang_warnings.NoHeaderSeen, final_check.value.value
                 final_check.value.isValid(last_check.value)
-                print 'returning here'
+                #print 'returning here'
                 return current, None, final_check.value.value
         if current_t.type == 'VARIABLE':
             check_next = next(header_line, None)
@@ -2733,7 +2795,7 @@ class Parser:
     def parse_expression(self, line):
         operation_converters = {'PLUS':lambda x, y:x+y, 'BAR':lambda x,y:x-y, 'STAR':lambda x, y:x*y, 'FORWARDSLASH':lambda x, y:x/y, 'MODULO':lambda x, y:x%y}
         current = next(line, None)
-        print 'current last', current
+        #print 'current last', current
         if not current:
             return None
         if current.type == 'VARIABLE':
@@ -2770,7 +2832,7 @@ class Parser:
                     if not can_continue or can_continue.type == 'CPAREN':
                         break
                     line = iter([can_continue]+[i for i in line])
-                print 'PARAMS HERE', params
+                #print 'PARAMS HERE', params
                 result, namespace = self.procedures[current.value.value](*params)
                 self.variables = namespace if namespace else self.variables
                 checking_next_v = next(line, None)
@@ -2844,7 +2906,7 @@ class Parser:
                 while path:
                     try:
                         new_val = current_value_attr[path[0]]
-                        print 'in try block', new_val
+                        #print 'in try block', new_val
                     except:
                         if path[0] not in current_value_attr.scopes:
                             raise mylang_errors.AttributeNotFound("At line {}, near '{}':scope '{}' has no attribute '{}'".format(current_attr.value.line_number, current_attr.value.value, start_scope, path[0]))
@@ -2891,7 +2953,62 @@ class Parser:
             current_line, self.current_line_on = itertools.tee(current_line)
 
             start = next(current_line)
-            print 'start in parse() check', start
+            if start.type == 'PRINT':
+                check_next = next(current_line, None)
+                if not check_next:
+                    print "myLang console OUT: \n"
+                else:
+                    current_line = iter([check_next]+[i for i in current_line])
+                    final_result = self.parse_assign(current_line)
+                    print 'myLang console OUT: ', final_result
+            if start.type == 'FOR':
+                check_next = next(current_line, None)
+                if not check_next:
+                    raise mylang_errors.InvalidSyntax("At line {}, near '{}', expecting iterative value".format(start.value.line_number, start.value.value))
+                start.value.isValid(check_next.value)
+                temp_current = [check_next]+[i for i in current_line]
+                top_at = [i for i, a in enumerate(temp_current) if a.type == 'TORETURN']
+                if not top_at:
+                    raise mylang_errors.InvalidSyntax("Expecting '->' in for-loop header")
+                full_val = self.parse_expression(iter(temp_current[:top_at[0]]))
+                parans_seen = collections.deque(['{']) if any(i.type == 'OBRACKET' for i in temp_current[top_at[0]+1:]) else collections.deque()
+                pipe_to = [i for i in temp_current[top_at[0]+1:] if i.type == 'VARIABLE']
+
+                if not pipe_to:
+                    raise mylang_errors.InvalidSyntax("At line {}, near '->': expecting iterable storage variable".format(check_next.value.line_number))
+                for_loop_namespace = []
+                while True:
+                    c_line = next(self.token_list, None)
+                    if not c_line:
+                        raise mylang_errors.InvalidEndOfRepetitiveBlock("Expecting '}'")
+                    full_line = [i for i in c_line]
+                    if any(i.type == 'OBRACKET' for i in full_line) and not any(i.type == 'CBRACKET' for i in full_line):
+                        parans_seen.append('{')
+                        for_loop_namespace.append(full_line)
+                    elif any(i.type == 'CBRACKET' for i in full_line) and not any(i.type == 'OBRACKET' for i in full_line):
+                        if not parans_seen:
+                            raise mylang_errors.InvalidStartOfSwitchBlock("Expecting a {")
+                        val = parans_seen.pop()
+                        if not parans_seen:
+                            break
+                        else:
+                            for_loop_namespace.append(full_line)
+                    else:
+                        for_loop_namespace.append(full_line)
+
+
+                store_current_token_list = [[b for b in i] for i in self.token_list]
+                copy_current_token_list = copy.deepcopy(store_current_token_list)
+                for current_val_on_iter in getattr(full_val, 'contents', range(full_val) if isinstance(full_val, int) else full_val):
+                    self.variables[pipe_to[0].value.value] = current_val_on_iter
+                    self.scopes[pipe_to[0].value.value] = Scope(pipe_to[0].value.value, [], [], current_namespace = dict([(i, getattr(current_val_on_iter, i)()) for i in ['upper', 'lower', 'capitalize', 'isupper', 'islower']]+[('type', type(current_val_on_iter).__name__)]) if isinstance(current_val_on_iter, str) else dict([('increment', current_val_on_iter+1), ('squared', pow(current_val_on_iter, 2)), ('type', type(current_val_on_iter).__name__), ('toString', str(current_val_on_iter))]) if isinstance(current_val_on_iter, int) else {'type':getattr(current_val_on_iter, 'rep', type(current_val_on_iter).__name__)}, builtins = mylang_builtins.builtin_methods[getattr(current_val_on_iter, 'rep', type(current_val_on_iter).__name__)])
+
+                    self.token_list = iter(map(iter, for_loop_namespace))
+                    self.parse()
+                    self.token_list = iter(map(iter, copy_current_token_list))
+
+
+
             if start.type == 'SWITCH':
                 test_second = next(current_line, None)
                 if not test_second:
@@ -2944,19 +3061,19 @@ class Parser:
                 filtered_param = full_switch_case(params)
                 print 'trying first', (full_switch_case.first_option[0][-1], filtered_param)
 
-                print 'truthy results here', getattr(operator, full_switch_case.first_option[0][0], lambda _, y:bool(y))(full_switch_case.first_option[0][-1], filtered_param)
+                #print 'truthy results here', getattr(operator, full_switch_case.first_option[0][0], lambda _, y:bool(y))(full_switch_case.first_option[0][-1], filtered_param)
                 if getattr(operator, full_switch_case.first_option[0][0], lambda _, y:bool(y))(filtered_param, full_switch_case.first_option[0][-1]):
-                    print 'GOT IN HERE HERE'
+                    #print 'GOT IN HERE HERE'
                     seen_successfull_pass = True
                     temp_token_list_here = [[b for b in i] for i in self.token_list]
-                    print 'temp_token_list_here', temp_token_list_here
+                    #print 'temp_token_list_here', temp_token_list_here
                     copy_token_list = copy.deepcopy(temp_token_list_here)
                     self.token_list = full_switch_case.first_option[-1]
                     self.parse()
                     self.token_list = iter(map(iter, copy_token_list))
                 for case_condition in full_switch_case:
                     if seen_successfull_pass:
-                        print 'case_condition here', case_condition
+                        #print 'case_condition here', case_condition
                         if getattr(operator, case_condition[0][0], lambda _, y:bool(y))(case_condition[0][-1], filtered_param):
                             seen_successfull_pass = True
                             temp_token_list_here = [[b for b in i] for i in self.token_list]
@@ -2967,9 +3084,9 @@ class Parser:
                         else:
                             seen_successfull_pass = False
                     else:
-                        print '()'*10
-                        print 'case_condition check here', case_condition
-                        print '()'*10
+                        #print '()'*10
+                        #print 'case_condition check here', case_condition
+                        #print '()'*10
                         if case_condition[0][1]:
                             if getattr(operator, case_condition[0][0], lambda _, y:bool(y))(case_condition[0][-1], filtered_param):
                                 seen_successfull_pass = True
@@ -3011,7 +3128,7 @@ class Parser:
                         raise mylang_errors.ParameterSytnaxError("At line {}, near '{}': invalid parameter syntax".format(checking.value.line_number, checking.value.value))
                     checking.value.isValid(current_param.value)
                     if current_param.type == 'CPAREN':
-                        print 'IN HERE WITH procedure ', start.value.value
+                        #print 'IN HERE WITH procedure ', start.value.value
                         result, namespace = self.procedures[start.value.value]()
                         #check for truthiness of function __call__ returned values
 
@@ -3028,7 +3145,7 @@ class Parser:
                             if not checking_last:
                                 break
                             current_line = iter([checking_last]+[i for i in current_line])
-                        print "final params here", full_params
+                        #print "final params here", full_params
                         result, namespace = self.procedures[start.value.value](*full_params)
                         if result:
                             raise mylang_errors.InvalidProcedureReturn("At line {}, near '{}': procedure '{}' is not void".format(start.value.line_number, start.value.value, start.value.value))
@@ -3090,7 +3207,7 @@ class Parser:
                                 try:
 
                                     builtin_procedure = mylang_builtins.builtin_methods[getattr(starting_base, 'rep', type(starting_base).__name__)]
-                                    print 'builtin_procedure here', builtin_procedure
+                                    #print 'builtin_procedure here', builtin_procedure
                                 except (KeyError, IndexError):
                                     pass
 
@@ -3136,8 +3253,8 @@ class Parser:
                             raise mylang_errors.InvalidEndOfDeclaration("At line {}, near '{}': expecting a scope or procedure declaration".format(next_start_1.value.line_number, possible_name.value.value))
                         possible_name.value.isValid(possible_start.value)
                         function_params, warnings, return_type = self.parse_procedure_header(current_line)
-                        print "procedure name is: {}, params are: {}, warnings include: {}, return_type is {}".format(possible_name.value.value, function_params, warnings, return_type)
-                        print "procedure name is: {}, params are: {}, warnings include: {}, return_type is {}".format(possible_name.value.value, function_params, warnings, return_type)
+                        #print "procedure name is: {}, params are: {}, warnings include: {}, return_type is {}".format(possible_name.value.value, function_params, warnings, return_type)
+                        #print "procedure name is: {}, params are: {}, warnings include: {}, return_type is {}".format(possible_name.value.value, function_params, warnings, return_type)
                         current_stack = collections.deque(['{']) if not warnings else collections.deque()
                         procedure_namespace = []
                         while True:
@@ -3177,10 +3294,10 @@ class Parser:
                         raise mylang_errors.InvalidEndOfDeclaration("At line {}, near '{}': expecting a scope or procedure declaration".format(next_start.value.line_number, possible_name.value.value))
                     possible_name.value.isValid(possible_start.value)
                     temp_current_line = [i for i in current_line]
-                    print 'CURRENT LINE FOR function {}'.format(possible_name.value.value), temp_current_line
+                    #print 'CURRENT LINE FOR function {}'.format(possible_name.value.value), temp_current_line
                     current_line = iter(temp_current_line)
                     function_params, warnings, return_type = self.parse_procedure_header(current_line)
-                    print 'CHECKING FUNCTION_PARAMS here for function {}'.format(possible_name.value.value), function_params
+                    #print 'CHECKING FUNCTION_PARAMS here for function {}'.format(possible_name.value.value), function_params
 
                     current_stack = collections.deque(['{']) if not warnings else collections.deque()
                     procedure_namespace = []
@@ -3205,7 +3322,7 @@ class Parser:
                                 procedure_namespace.append(new_namespace_line)
                         else:
                             procedure_namespace.append(new_namespace_line)
-                    print 'final_namespace discovered', procedure_namespace
+                    #print 'final_namespace discovered', procedure_namespace
 
                     self.scopes[possible_name.value.value] = Scope(possible_name.value.value, [], [], current_namespace = {'param_num':len(function_params)})
                     self.scopes[possible_name.value.value].scopes['signature'] = Scope('Signature', [], [], current_namespace = {'parameters':', '.join(i if not isinstance(i, list) else i[0] for i in function_params), 'types':', '.join('{}:{}'.format(i, None) if not isinstance(i, list) else "{}:{}".format(i[0], i[1]) for i in function_params)})
@@ -3250,7 +3367,7 @@ class Parser:
                                 scope_block.append(testing_line)
                         else:
                             scope_block.append(testing_line)
-                    print 'SCOPE BLOCK HERE FOR scope {}'.format(name), scope_block
+                    #print 'SCOPE BLOCK HERE FOR scope {}'.format(name), scope_block
                     self.scopes[name] = Scope(name, scope_block, params, current_namespace = self.variables)
             if start.type == 'PROCEDURE':
                 possible_name = next(current_line, None)
@@ -3262,10 +3379,10 @@ class Parser:
                 if not possible_start:
                     raise mylang_errors.InvalidEndOfDeclaration("At line {}, near '{}': expecting a scope or procedure declaration".format(start.value.line_number, possible_name.value.value))
                 possible_name.value.isValid(possible_start.value)
-                print 'CURRENT LINE FOR function {}'.format(possible_name.value.value), current_line
+                #print 'CURRENT LINE FOR function {}'.format(possible_name.value.value), current_line
 
                 function_params, warnings, return_type = self.parse_procedure_header(current_line)
-                print 'CHECKING FUNCTION_PARAMS here for function {}'.format(possible_name.value.value), function_params
+                #print 'CHECKING FUNCTION_PARAMS here for function {}'.format(possible_name.value.value), function_params
                 current_stack = collections.deque(['{']) if not warnings else collections.deque()
                 procedure_namespace = []
                 while True:
@@ -3289,7 +3406,7 @@ class Parser:
                             procedure_namespace.append(new_namespace_line)
                     else:
                         procedure_namespace.append(new_namespace_line)
-                print 'procedure namespace discovery', procedure_namespace
+                #print 'procedure namespace discovery', procedure_namespace
 
                 self.scopes[possible_name.value.value] = Scope(possible_name.value.value, [], [], current_namespace = {'param_num':len(function_params)})
                 self.scopes[possible_name.value.value].scopes['signature'] = Scope('Signature', [], [], current_namespace = {'parameters':', '.join(i if not isinstance(i, list) else i[0] for i in function_params), 'types':', '.join('{}:{}'.format(i, None) if not isinstance(i, list) else "{}:{}".format(i[0], i[1]) for i in function_params)})
@@ -3511,7 +3628,7 @@ class Parser:
                                     test = current_scope_1.procedures[temp_path.value.value]
                                 except:
                                     if len(path_copy) == 1:
-                                        print (path_copy, temp_path.value.value, current_scope_1)
+                                        #print (path_copy, temp_path.value.value, current_scope_1)
                                         return self.scopes[path_copy[-1]].builtins[temp_path.value.value](path_copy[-1], current_scope_1)
                                     scope_object = self.scopes if path_copy[0] not in self.variables else self.variables
 
@@ -3529,13 +3646,13 @@ class Parser:
                             current_params_check = []
                             while True:
                                 result_here_1 = self.parse_expression(line)
-                                print 'result_here_1', result_here_1
+                                #print 'result_here_1', result_here_1
                                 current_params_check.append(result_here_1)
                                 check_next_4 = next(line, None)
                                 if not check_next_4:
                                     break
                                 line = iter([check_next_4]+[i for i in line])
-                            #print 'current_params_check here for {}'.format(path[-1]), current_params_check
+                            ##print 'current_params_check here for {}'.format(path[-1]), current_params_check
                             current_scope_1 = self.scopes if path[0] not in self.variables else self.variables
                             path_copy = copy.deepcopy(list(path))
                             path = list(path)
@@ -3588,16 +3705,16 @@ class Parser:
                             scope_result = scope_result[val]
                         else:
                             if not path:
-                                print 'V', val
+                                #print 'V', val
                                 if val in store_last[-2].scopes[string_last[-1]]:
-                                    print 'all is well here'
+                                    #print 'all is well here'
 
                                     scope_result = store_last[-2].scopes[string_last[-1]][val]
                                 else:
-                                    print 'in this level'
+                                    #print 'in this level'
                                     raise mylang_errors.AttributeNotFound("scope '{}' has no attribute '{}'".format(string_last[-1], val))
                             else:
-                                print 'strange result'
+                                #print 'strange result'
                                 scope_result = scope_result.scopes[val]
                         store_last.append(scope_result)
                         string_last.append(val)
