@@ -81,3 +81,9 @@ class InvalidSwitchStatement(Exception):
 
 class CastingError(Exception):
     pass
+
+class InvalidEndOfRepetitiveBlock(Exception):
+    pass
+
+class InvalidStartOfRepetitiveBlock(Exception):
+    pass
