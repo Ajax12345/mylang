@@ -1,0 +1,16 @@
+procedure updateVals(i:int, the_list:ArrayList, current_list:ArrayList){
+  last = the_list.length()
+  switch(i){
+    case.eq last - 1:
+      second_val = the_list.itemAt(i)
+      current_list.addBack(second_val+1)
+      return current_list
+    default:
+      second_val = the_list.itemAt(i)
+      current_list.addBack(second_val+1)
+      return updateVals(i+1, the_list, current_list)
+  }
+}
+the_listing = {1, 2, 4, 2, 3, 4}
+new_l = {}
+final_result = updateVals(0, the_listing, new_l)
