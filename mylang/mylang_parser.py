@@ -89,7 +89,7 @@ class SwitchCase:
 
 
     def parse_expression(self, line):
-        operation_converters = {'PLUS':lambda x, y:x+y, 'BAR':lambda x,y:x-y, 'STAR':lambda x, y:x*y, 'FORWARDSLASH':lambda x, y:x/y}
+        operation_converters = {'PLUS':lambda x, y:x+y, 'BAR':lambda x,y:x-y, 'STAR':lambda x, y:x*y, 'FORWARDSLASH':lambda x, y:x/y, 'MODULO':lambda x, y:x%y}
         current = next(line, None)
         print 'current last', current
         if not current:
@@ -348,7 +348,7 @@ class ArrayList:
         return self.variables[var.value.value]
 
     def parse_expression(self, line):
-        operation_converters = {'PLUS':lambda x, y:x+y, 'BAR':lambda x,y:x-y, 'STAR':lambda x, y:x*y, 'FORWARDSLASH':lambda x, y:x/y}
+        operation_converters = {'PLUS':lambda x, y:x+y, 'BAR':lambda x,y:x-y, 'STAR':lambda x, y:x*y, 'FORWARDSLASH':lambda x, y:x/y, 'MODULO':lambda x, y:x%y}
         current = next(line, None)
         print 'current here', current
         #print 'current here', current
@@ -540,7 +540,7 @@ class Procedure:
             raise mylang_errors.VariableNotDeclared("At line {}, near '{}': variable '{}' not declared".format(var.value.line_number, var.value.value, var.value.value))
         return self.variables[var.value.value]
     def parse_expression(self, line):
-        operation_converters = {'PLUS':lambda x, y:x+y, 'BAR':lambda x,y:x-y, 'STAR':lambda x, y:x*y, 'FORWARDSLASH':lambda x, y:x/y}
+        operation_converters = {'PLUS':lambda x, y:x+y, 'BAR':lambda x,y:x-y, 'STAR':lambda x, y:x*y, 'FORWARDSLASH':lambda x, y:x/y, 'MODULO':lambda x, y:x%y}
         current = next(line, None)
         if not current:
             return None
@@ -840,7 +840,7 @@ class Procedure:
                     #print 'To store here,', to_store, start.value.value
                     self.variables[start.value.value] = to_store
 
-                    self.scopes[start.value.value] = Scope(start.value.value, [], [], current_namespace = dict([(i, getattr(to_store, i)()) for i in ['upper', 'lower', 'capitalize', 'isupper', 'islower']]+[('type', type(to_store).__name__)]) if isinstance(to_store, str) else dict([('increment', to_store+1), ('squared', pow(to_store, 2))]+[('type', 'int')]) if isinstance(to_store, int) else {'type':getattr(to_store, 'rep', type(to_store).__name__)}, builtins = mylang_builtins.builtin_methods[getattr(to_store, 'rep', type(to_store).__name__)])
+                    self.scopes[start.value.value] = Scope(start.value.value, [], [], current_namespace = dict([(i, getattr(to_store, i)()) for i in ['upper', 'lower', 'capitalize', 'isupper', 'islower']]+[('type', type(to_store).__name__)]) if isinstance(to_store, str) else dict([('increment', to_store+1), ('squared', pow(to_store, 2)), ('toString', str(to_store))]+[('type', 'int')]) if isinstance(to_store, int) else {'type':getattr(to_store, 'rep', type(to_store).__name__)}, builtins = mylang_builtins.builtin_methods[getattr(to_store, 'rep', type(to_store).__name__)])
 
 
                 if checking.type == 'DOT':
@@ -1059,7 +1059,7 @@ class Procedure:
                 ##print 'CHECKING FUNCTION_PARAMS here for function {}'.format(possible_name.value.value), function_params
                 current_stack = collections.deque(['{']) if not warnings else collections.deque()
                 procedure_namespace = []
-                
+
                 while True:
                     print '-'*20
                     print 'current_stack', current_stack
@@ -1176,7 +1176,7 @@ class Procedure:
 
     def parse_assign(self, line):
 
-        operation_converters = {'PLUS':lambda x, y:x+y, 'BAR':lambda x,y:x-y, 'STAR':lambda x, y:x*y, 'FORWARDSLASH':lambda x, y:x/y}
+        operation_converters = {'PLUS':lambda x, y:x+y, 'BAR':lambda x,y:x-y, 'STAR':lambda x, y:x*y, 'FORWARDSLASH':lambda x, y:x/y, 'MODULO':lambda x, y:x%y}
         current = next(line, None)
         if current.type == 'OBRACKET':
 
@@ -1536,7 +1536,7 @@ class Scope:
         raise Exception("Something went wrong")
 
     def parse_expression(self, line):
-        operation_converters = {'PLUS':lambda x, y:x+y, 'BAR':lambda x,y:x-y, 'STAR':lambda x, y:x*y, 'FORWARDSLASH':lambda x, y:x/y}
+        operation_converters = {'PLUS':lambda x, y:x+y, 'BAR':lambda x,y:x-y, 'STAR':lambda x, y:x*y, 'FORWARDSLASH':lambda x, y:x/y, 'MODULO':lambda x, y:x%y}
         current = next(line, None)
         print 'current last', current
         if not current:
@@ -1862,7 +1862,7 @@ class Scope:
                     print 'storing string?', to_store, start.value.value
                     self.variables[start.value.value] = to_store
 
-                    self.scopes[start.value.value] = Scope(start.value.value, [], [], current_namespace = dict([(i, getattr(to_store, i)()) for i in ['upper', 'lower', 'capitalize', 'isupper', 'islower']]+[('type', 'str')]) if isinstance(to_store, str) else dict([('increment', to_store+1), ('squared', pow(to_store, 2))]) if isinstance(to_store, int) else {'type':getattr(to_store, 'rep', type(to_store).__name__)}, builtins = mylang_builtins.builtin_methods[getattr(to_store, 'rep', type(to_store).__name__)])
+                    self.scopes[start.value.value] = Scope(start.value.value, [], [], current_namespace = dict([(i, getattr(to_store, i)()) for i in ['upper', 'lower', 'capitalize', 'isupper', 'islower']]+[('type', 'str')]) if isinstance(to_store, str) else dict([('increment', to_store+1), ('squared', pow(to_store, 2)), ('toString', str(to_store)), ('type', 'int')]) if isinstance(to_store, int) else {'type':getattr(to_store, 'rep', type(to_store).__name__)}, builtins = mylang_builtins.builtin_methods[getattr(to_store, 'rep', type(to_store).__name__)])
 
                 if checking.type == 'DOT':
                     path = collections.deque([start.value.value])
@@ -2164,7 +2164,7 @@ class Scope:
 
     def parse_assign(self, line):
 
-        operation_converters = {'PLUS':lambda x, y:x+y, 'BAR':lambda x,y:x-y, 'STAR':lambda x, y:x*y, 'FORWARDSLASH':lambda x, y:x/y}
+        operation_converters = {'PLUS':lambda x, y:x+y, 'BAR':lambda x,y:x-y, 'STAR':lambda x, y:x*y, 'FORWARDSLASH':lambda x, y:x/y, 'MODULO':lambda x, y:x%y}
         current = next(line, None)
         if current.type == 'OBRACKET':
 
@@ -2535,7 +2535,7 @@ class Parser:
         return self.variables[var.value.value]
 
     def parse_expression(self, line):
-        operation_converters = {'PLUS':lambda x, y:x+y, 'BAR':lambda x,y:x-y, 'STAR':lambda x, y:x*y, 'FORWARDSLASH':lambda x, y:x/y}
+        operation_converters = {'PLUS':lambda x, y:x+y, 'BAR':lambda x,y:x-y, 'STAR':lambda x, y:x*y, 'FORWARDSLASH':lambda x, y:x/y, 'MODULO':lambda x, y:x%y}
         current = next(line, None)
         print 'current last', current
         if not current:
@@ -2844,7 +2844,7 @@ class Parser:
 
                     self.variables[start.value.value] = to_store
 
-                    self.scopes[start.value.value] = Scope(start.value.value, [], [], current_namespace = dict([(i, getattr(to_store, i)()) for i in ['upper', 'lower', 'capitalize', 'isupper', 'islower']]+[('type', type(to_store).__name__)]) if isinstance(to_store, str) else dict([('increment', to_store+1), ('squared', pow(to_store, 2)), ('type', type(to_store).__name__)]) if isinstance(to_store, int) else {'type':getattr(to_store, 'rep', type(to_store).__name__)}, builtins = mylang_builtins.builtin_methods[getattr(to_store, 'rep', type(to_store).__name__)])
+                    self.scopes[start.value.value] = Scope(start.value.value, [], [], current_namespace = dict([(i, getattr(to_store, i)()) for i in ['upper', 'lower', 'capitalize', 'isupper', 'islower']]+[('type', type(to_store).__name__)]) if isinstance(to_store, str) else dict([('increment', to_store+1), ('squared', pow(to_store, 2)), ('type', type(to_store).__name__), ('toString', str(to_store))]) if isinstance(to_store, int) else {'type':getattr(to_store, 'rep', type(to_store).__name__)}, builtins = mylang_builtins.builtin_methods[getattr(to_store, 'rep', type(to_store).__name__)])
 
                 if checking.type == 'DOT':
                     path = collections.deque([start.value.value])
@@ -3196,7 +3196,7 @@ class Parser:
 
     def parse_assign(self, line):
 
-        operation_converters = {'PLUS':lambda x, y:x+y, 'BAR':lambda x,y:x-y, 'STAR':lambda x, y:x*y, 'FORWARDSLASH':lambda x, y:x/y}
+        operation_converters = {'PLUS':lambda x, y:x+y, 'BAR':lambda x,y:x-y, 'STAR':lambda x, y:x*y, 'FORWARDSLASH':lambda x, y:x/y, 'MODULO':lambda x, y:x%y}
         current = next(line, None)
         if current.type == 'OBRACKET':
 
