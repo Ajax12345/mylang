@@ -793,7 +793,7 @@ class Procedure:
             current_line, self.current_line_on = itertools.tee(current_line)
 
             start = next(current_line)
-            
+
             if start.type == 'VARIABLE':
                 checking = next(current_line)
                 start.value.isValid(checking.value)
@@ -953,15 +953,17 @@ class Procedure:
                             new_namespace_line = [i for i in current_namespace_line]
 
 
-                            if any(i.type == 'OBRACKET' for i in new_namespace_line):
+                            if any(i.type == 'OBRACKET' for i in new_namespace_line) and not any(i.type == 'CBRACKET' for i in new_namespace_line):
                                 current_stack.append('{')
                                 procedure_namespace.append(new_namespace_line)
-                            if any(i.type == 'CBRACKET' for i in new_namespace_line):
+                            elif any(i.type == 'CBRACKET' for i in new_namespace_line):
                                 if not current_stack:
                                     raise mylang_errors.InvalidStartOfProcedureBlock("Missing '{' for start of scope of procedure '{}'".format(possible_name.value.value))
                                 val = current_stack.pop()
                                 if not current_stack:
                                     break
+                                else:
+                                    procedure_namespace.append(new_namespace_line)
                             else:
                                 procedure_namespace.append(new_namespace_line)
 
@@ -995,15 +997,18 @@ class Procedure:
                         new_namespace_line = [i for i in current_namespace_line]
 
 
-                        if any(i.type == 'OBRACKET' for i in new_namespace_line):
+                        if any(i.type == 'OBRACKET' for i in new_namespace_line) and not any(i.type == 'CBRACKET' for i in new_namespace_line):
                             current_stack.append('{')
                             procedure_namespace.append(new_namespace_line)
-                        if any(i.type == 'CBRACKET' for i in new_namespace_line):
+                        elif any(i.type == 'CBRACKET' for i in new_namespace_line):
                             if not current_stack:
                                 raise mylang_errors.InvalidStartOfProcedureBlock("Missing '{' for start of scope of procedure '{}'".format(possible_name.value.value))
                             val = current_stack.pop()
                             if not current_stack:
                                 break
+                            else:
+                                procedure_namespace.append(new_namespace_line)
+
                         else:
                             procedure_namespace.append(new_namespace_line)
 
@@ -1022,10 +1027,10 @@ class Procedure:
                         if not current:
                             raise mylang_errors.ReachedEndOfScopeBlock("missing block terminating character '}'")
                         line = [i for i in current]
-                        if any(i.type == 'OBRACKET' for i in line):
+                        if any(i.type == 'OBRACKET' for i in line) and not any(i.type == 'CBRACKET' for i in line):
                             brackets_seen.append('{')
                             scope_block.append(line)
-                        if any(i.type == 'CBRACKET' for i in line):
+                        elif any(i.type == 'CBRACKET' for i in line):
                             if not brackets_seen:
                                 raise mylang_errors.ReachedEndOfScopeBlock("missing block initiation character '{'")
                             val = brackets_seen.pop()
@@ -1067,10 +1072,10 @@ class Procedure:
                     new_namespace_line = [i for i in current_namespace_line]
                     print 'new_namespace_line', new_namespace_line
 
-                    if any(i.type == 'OBRACKET' for i in new_namespace_line):
+                    if any(i.type == 'OBRACKET' for i in new_namespace_line) and not any(i.type == 'CBRACKET' for i in new_namespace_line):
                         current_stack.append('{')
                         procedure_namespace.append(new_namespace_line)
-                    if any(i.type == 'CBRACKET' for i in new_namespace_line):
+                    elif any(i.type == 'CBRACKET' for i in new_namespace_line):
                         if not current_stack:
                             raise mylang_errors.InvalidStartOfProcedureBlock("Missing '{' for start of scope of procedure '{}'".format(possible_name.value.value))
                         val = current_stack.pop()
@@ -1088,7 +1093,7 @@ class Procedure:
             if start.type == 'SCOPE':
 
                 params, name, flags = self.parse_scope(start, current_line, self.token_list)
-                pop_top = next(self.token_list)
+
                 scope_block = []
                 brackets_seen = collections.deque(['{']) if not flags else collections.deque()
                 while True:
@@ -1099,10 +1104,10 @@ class Procedure:
                     print '$'*20
                     print 'line here', line
                     print '$'*20
-                    if any(i.type == 'OBRACKET' for i in line):
+                    if any(i.type == 'OBRACKET' for i in line) and not any(i.type == 'CBRACKET' for i in line):
                         brackets_seen.append('{')
                         scope_block.append(line)
-                    if any(i.type == 'CBRACKET' for i in line):
+                    elif any(i.type == 'CBRACKET' for i in line):
                         if not brackets_seen:
                             raise mylang_errors.InvalidScopeBlock("Expecting '{'")
                         val = brackets_seen.pop()
@@ -1112,7 +1117,7 @@ class Procedure:
                             scope_block.append(line)
                     else:
                         scope_block.append(line)
-
+                print 'IN HERE @@', scope_block
                 self.scopes[name] = Scope(name, scope_block, params)
 
             self.parse()
@@ -1296,6 +1301,7 @@ class Procedure:
                                     path = path[1:]
 
                                 try:
+
                                     test = current_scope_1.procedures[temp_path.value.value]
                                 except:
                                     if len(path_copy) == 1:
@@ -1345,7 +1351,7 @@ class Procedure:
                                     scope_object = scope_object[path_copy[0]]
                                     path_copy = path_copy[1:]
 
-                                return scope_object.scopes[path_copy[-1]].builtins[temp_path.value.value](path_copy[-1], current_scope_1)
+                                return scope_object.scopes[path_copy[-1]].builtins[temp_path.value.value](path_copy[-1], current_scope_1, *current_params_check)
                             Scope.private_procedure_check(current_scope_1.procedures[temp_path.value.value])
                             to_return, new_scope_namespace = current_scope_1.procedures[temp_path.value.value](*current_params_check)
                             if to_return == []:
@@ -1503,6 +1509,10 @@ class Scope:
         self.__scope_name__ = name
         self.params = params
         self.builtins = kwargs.get('builtins', {})
+        print '======namespace for scope===='
+        for i in namespace:
+            print i
+        print '='*20
         #print 'builtins here for name {}'.format(name), self.builtins
 
         self.private_variables = []
@@ -1935,15 +1945,17 @@ class Scope:
                             new_namespace_line = [i for i in current_namespace_line]
 
 
-                            if any(i.type == 'OBRACKET' for i in new_namespace_line):
+                            if any(i.type == 'OBRACKET' for i in new_namespace_line) and not any(i.type == 'CBRACKET' for i in new_namespace_line):
                                 current_stack.append('{')
                                 procedure_namespace.append(new_namespace_line)
-                            if any(i.type == 'CBRACKET' for i in new_namespace_line):
+                            elif any(i.type == 'CBRACKET' for i in new_namespace_line) and not any(i.type == 'OBRACKET' for i in new_namespace_line):
                                 if not current_stack:
                                     raise mylang_errors.InvalidStartOfProcedureBlock("Missing '{' for start of scope of procedure '{}'".format(possible_name.value.value))
                                 val = current_stack.pop()
                                 if not current_stack:
                                     break
+                                else:
+                                    procedure_namespace.append(new_namespace_line)
                             else:
                                 procedure_namespace.append(new_namespace_line)
 
@@ -1980,15 +1992,17 @@ class Scope:
                         new_namespace_line = [i for i in current_namespace_line]
 
 
-                        if any(i.type == 'OBRACKET' for i in new_namespace_line):
+                        if any(i.type == 'OBRACKET' for i in new_namespace_line) and not any(i.type == 'CBRACKET' for i in new_namespace_line):
                             current_stack.append('{')
                             procedure_namespace.append(new_namespace_line)
-                        if any(i.type == 'CBRACKET' for i in new_namespace_line):
+                        elif any(i.type == 'CBRACKET' for i in new_namespace_line) and not any(i.type == 'OBRACKET' for i in new_namespace_line):
                             if not current_stack:
                                 raise mylang_errors.InvalidStartOfProcedureBlock("Missing '{' for start of scope of procedure '{}'".format(possible_name.value.value))
                             val = current_stack.pop()
                             if not current_stack:
                                 break
+                            else:
+                                procedure_namespace.append(new_namespace_line)
                         else:
                             procedure_namespace.append(new_namespace_line)
 
@@ -2004,21 +2018,25 @@ class Scope:
                     scope_block = []
                     brackets_seen = collections.deque(['{']) if not temp_flag else collections.deque()
                     while True:
-                        line = [c for c in next(self.token_list, None)]
-                        if len(line) == 1 and line[0].value.value == '{':
+                        line = next(self.token_list, None)
+                        if not line:
+                            raise mylang_errors.ReachedEndOfScopeBlock("Expecting '}'")
+                        current_line = [i for i in line]
+                        if any(i.type == 'OBRACKET' for i in current_line) and not any(i.type == 'CBRACKET' for i in current_line):
                             brackets_seen.append('{')
-                        if len(line) == 1 and line[0].value.value == '}':
-                            try:
-                                val = brackets_seen.pop()
-                                scope_block.append(line)
-                            except:
-                                raise mylang_errors.ReachedEndOfScopeBlock("missing block initiating character '{'")
+                            scope_block.append(current_line)
+                        elif any(i.type == 'CBRACKET' for i in current_line) and not any(i.type == 'OBRACKET' for i in current_line):
+                            if not brackets_seen:
+                                raise mylang_errors.ReachedEndOfScopeBlock("Expecting '}'")
+
+                            val = brackets_seen.pop()
                             if not brackets_seen:
                                 break
-                        if line is None:
-                            raise mylang_errors.ReachedEndOfScopeBlock("missing block terminating character '}'")
+                            else:
+                                scope_block.append(line)
 
-                        scope_block.append(line)
+                        else:
+                            scope_block.append(line)
                     self.scopes[name] = Scope(name, scope_block, params, current_namespace = self.variables)
             if start.type == 'PROCEDURE':
                 possible_name = next(current_line, None)
@@ -2045,15 +2063,17 @@ class Scope:
                     new_namespace_line = [i for i in current_namespace_line]
 
 
-                    if any(i.type == 'OBRACKET' for i in new_namespace_line):
+                    if any(i.type == 'OBRACKET' for i in new_namespace_line) and not any(i.type == 'CRBRACKET' for i in new_namespace_line):
                         current_stack.append('{')
                         procedure_namespace.append(new_namespace_line)
-                    if any(i.type == 'CBRACKET' for i in new_namespace_line):
+                    elif any(i.type == 'CBRACKET' for i in new_namespace_line):
                         if not current_stack:
                             raise mylang_errors.InvalidStartOfProcedureBlock("Missing '{' for start of scope of procedure '{}'".format(possible_name.value.value))
                         val = current_stack.pop()
                         if not current_stack:
                             break
+                        else:
+                            procedure_namespace.append(new_namespace_line)
                     else:
                         procedure_namespace.append(new_namespace_line)
 
@@ -2079,7 +2099,7 @@ class Scope:
                         raise mylang_errors.ReachedEndOfScopeBlock("missing block terminating character '}'")
 
                     final_line = [i for i in current_line]
-                    if any(i.type == 'OBRACKET' for i in final_line):
+                    if any(i.type == 'OBRACKET' for i in final_line) and not any(i.type =='CBRACKET' for i in current_line):
                         brackets_seen.append('{')
                         scope_block.append(final_line)
                     elif any(i.type == 'CBRACKET' for i in final_line):
@@ -2701,14 +2721,17 @@ class Parser:
                     if not current_test_line:
                         raise mylang_errors.ReachedEndOfSwitchBlock("Expecting '}'")
                     the_line = [i for i in current_test_line]
-                    if any(i.type == 'OBRACKET' for i in the_line):
+                    if any(i.type == 'OBRACKET' for i in the_line) and not any(i.type == 'CBRACKET' for i in the_line):
                         current_stack.append('{')
-                    elif any(i.type == 'CBRACKET' for i in the_line) and len(the_line) == 1:
+                        switch_namespace.append(the_line)
+                    elif any(i.type == 'CBRACKET' for i in the_line) and not any(i.type == 'OBRACKET' for i in the_line):
                         if not current_stack:
                             raise mylang_errors.InvalidStartOfSwitchBlock("Expecting '{'")
                         val = current_stack.pop()
                         if not current_stack:
                             break
+                        else:
+                            switch_namespace.append(the_line)
                     else:
                         switch_namespace.append(the_line)
                 #print 'switch data: params:', params
@@ -2928,10 +2951,10 @@ class Parser:
                             new_namespace_line = [i for i in current_namespace_line]
 
 
-                            if any(i.type == 'OBRACKET' for i in new_namespace_line):
+                            if any(i.type == 'OBRACKET' for i in new_namespace_line) and not any(i.type == 'CBRACKET' for i in new_namespace_line):
                                 current_stack.append('{')
                                 procedure_namespace.append(new_namespace_line)
-                            if any(i.type == 'CBRACKET' for i in new_namespace_line):
+                            elif any(i.type == 'CBRACKET' for i in new_namespace_line) and not any(i.type == 'OBRACKET' for i in new_namespace_line):
                                 if not current_stack:
                                     raise mylang_errors.InvalidStartOfProcedureBlock("Missing '{' for start of scope of procedure '{}'".format(possible_name.value.value))
                                 val = current_stack.pop()
@@ -2972,10 +2995,10 @@ class Parser:
                         new_namespace_line = [i for i in current_namespace_line]
 
 
-                        if any(i.type == 'OBRACKET' for i in new_namespace_line):
+                        if any(i.type == 'OBRACKET' for i in new_namespace_line) and not any(i.type == 'CBRACKET' for i in new_namespace_line):
                             current_stack.append('{')
                             procedure_namespace.append(new_namespace_line)
-                        if any(i.type == 'CBRACKET' for i in new_namespace_line):
+                        elif any(i.type == 'CBRACKET' for i in new_namespace_line) and not any(i.type == 'OBRACKET' for i in new_namespace_line):
                             if not current_stack:
                                 raise mylang_errors.InvalidStartOfProcedureBlock("Missing '{' for start of scope of procedure '{}'".format(possible_name.value.value))
                             val = current_stack.pop()
@@ -3017,15 +3040,19 @@ class Parser:
                         if not current_line_on:
                             raise mylang_errors.ReachedEndOfScopeBlock("missing block terminating character '}'")
                         testing_line = [i for i in current_line_on]
-                        if any(i.type == "OBRACKET" for i in testing_line):
+                        if any(i.type == "OBRACKET" for i in testing_line) and not any(i.type == "CBRACKET" for i in testing_line):
                             brackets_seen.append('{')
-                        if any(i.type == 'CBRACKET' for i in testing_line):
+                            scope_block.append(testing_line)
+                        elif any(i.type == 'CBRACKET' for i in testing_line):
                             if not brackets_seen:
                                 raise mylang_errors.ReachedEndOfScopeBlock("missing block initialization character '{'")
                             val = brackets_seen.pop()
                             if not brackets_seen:
                                 break
-                        scope_block.append(testing_line)
+                            else:
+                                scope_block.append(testing_line)
+                        else:
+                            scope_block.append(testing_line)
                     print 'SCOPE BLOCK HERE FOR scope {}'.format(name), scope_block
                     self.scopes[name] = Scope(name, scope_block, params, current_namespace = self.variables)
             if start.type == 'PROCEDURE':
@@ -3052,10 +3079,10 @@ class Parser:
                     new_namespace_line = [i for i in current_namespace_line]
 
 
-                    if any(i.type == 'OBRACKET' for i in new_namespace_line):
+                    if any(i.type == 'OBRACKET' for i in new_namespace_line) and not any(i.type == 'CBRACKET' for i in new_namespace_line):
                         current_stack.append('{')
                         procedure_namespace.append(new_namespace_line)
-                    if any(i.type == 'CBRACKET' for i in new_namespace_line):
+                    elif any(i.type == 'CBRACKET' for i in new_namespace_line) and not any(i.type == 'OBRACKET' for i in new_namespace_line):
                         if not current_stack:
                             raise mylang_errors.InvalidStartOfProcedureBlock("Missing '{' for start of scope of procedure '{}'".format(possible_name.value.value))
                         val = current_stack.pop()
@@ -3097,16 +3124,21 @@ class Parser:
                     if not current_check_on:
                         raise mylang_errors.ReachedEndOfScopeBlock("missing block terminating character '}'")
                     current_content_check_on = [i for i in current_check_on]
-                    if any(i.type == 'OBRACKET' for i in current_content_check_on):
+                    if any(i.type == 'OBRACKET' for i in current_content_check_on) and not any(i.type == 'CBRACKET' for i in current_content_check_on):
                         brackets_seen.append('{')
-                    if any(i.type == 'CBRACKET' for i in current_content_check_on):
+                        scope_block.append(current_content_check_on)
+                    elif any(i.type == 'CBRACKET' for i in current_content_check_on) and not any(i.type == 'OBRACKET' for i in current_content_check_on):
                         if not brackets_seen:
                             raise mylang_errors.ReachedEndOfScopeBlock("missing block initialization character '{'")
                         val = brackets_seen.pop()
                         if not brackets_seen:
                             break
+                        else:
+                            scope_block.append(current_content_check_on)
+                    else:
+                        scope_block.append(current_content_check_on)
 
-                    scope_block.append(current_content_check_on)
+
                 self.scopes[name] = Scope(name, scope_block, params)
 
             self.parse()
