@@ -1,0 +1,10 @@
+procedure filter(the_type:str, target_list:ArrayList) -> ArrayList{
+  new_l = {}
+  for target_list -> d{
+      switch(d.type){
+        case.eq the_type:
+          new_l.addBack(d)
+      }
+  }
+  return new_l
+}
