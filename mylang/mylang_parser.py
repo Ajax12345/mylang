@@ -543,6 +543,7 @@ class Procedure:
     def parse_expression(self, line):
         operation_converters = {'PLUS':lambda x, y:x+y, 'BAR':lambda x,y:x-y, 'STAR':lambda x, y:x*y, 'FORWARDSLASH':lambda x, y:x/y, 'MODULO':lambda x, y:x%y}
         current = next(line, None)
+        #print 'current last', current
         if not current:
             return None
         if current.type == 'VARIABLE':
@@ -629,6 +630,13 @@ class Procedure:
                             while path:
                                 current_scope_selection = current_scope_selection[path[0]]
                                 path = path[1:]
+
+                            try:
+                                if the_method in mylang_builtins.builtin_methods[getattr(current_scope_selection, 'rep', type(current_scope_selection).__name__)]:
+                                    seen_operator = True
+                                    return mylang_builtins.builtin_methods[getattr(current_scope_selection, 'rep', type(current_scope_selection).__name__)][the_method](copy_path[-2], current_scope_selection, *method_params)
+                            except:
+                                pass
                             Scope.private_procedure_check(current_scope_selection.procedures[the_method])
                             to_return, namespace = current_scope_selection.procedures[the_method](*method_params)
                             base = self.scopes if start not in self.variables else self.variables
@@ -687,6 +695,7 @@ class Procedure:
             if next_val.type == "PLUS":
                 return current.value.value[1:-1] + return_val
         raise mylang_errors.NotYetSupportedError("Operation not yet supported")
+
 
     @mylang_wrappers.verify_procedure_parameter(valid_return_types = config.ALLOWED_RETURN_TYPES, max_param_val = config.MAX_PARAMS)
     def parse_procedure_header(self, header_line, current = None):
@@ -794,6 +803,12 @@ class Procedure:
             current_line, self.current_line_on = itertools.tee(current_line)
 
             start = next(current_line)
+            if start.type == 'THROW':
+                check_next = next(current_line, None)
+                if not check_next:
+                    raise mylang_errors.InvalidSyntax("At line {}, near '{}': expecting string warning:".format(start.value.line_number, start.value.value))
+                start.value.isValid(check_next.value)
+                raise mylang_errors.mainexception(check_next.value.value[1:-1])
             if start.type == 'PRINT':
                 check_next = next(current_line, None)
                 if not check_next:
@@ -1495,7 +1510,7 @@ class Procedure:
                             ##print 'current_params_check here for {}'.format(path[-1]), current_params_check
 
                             current_scope_1 = self.scopes if path[0] not in self.variables else self.variables
-                            
+
                             path_copy = copy.deepcopy(list(path))
                             path = list(path)
                             while path:
@@ -1796,10 +1811,12 @@ class Scope:
                                 current_scope_selection = current_scope_selection[path[0]]
                                 path = path[1:]
 
-
-                            if the_method in mylang_builtins.builtin_methods[getattr(current_scope_selection, 'rep', type(current_scope_selection).__name__)]:
-                                seen_operator = True
-                                return mylang_builtins.builtin_methods[getattr(current_scope_selection, 'rep', type(current_scope_selection).__name__)][the_method](copy_path[-2], current_scope_selection, *method_params)
+                            try:
+                                if the_method in mylang_builtins.builtin_methods[getattr(current_scope_selection, 'rep', type(current_scope_selection).__name__)]:
+                                    seen_operator = True
+                                    return mylang_builtins.builtin_methods[getattr(current_scope_selection, 'rep', type(current_scope_selection).__name__)][the_method](copy_path[-2], current_scope_selection, *method_params)
+                            except:
+                                pass
                             Scope.private_procedure_check(current_scope_selection.procedures[the_method])
                             to_return, namespace = current_scope_selection.procedures[the_method](*method_params)
                             base = self.scopes if start not in self.variables else self.variables
@@ -1994,6 +2011,12 @@ class Scope:
             current_line, self.current_line_on = itertools.tee(current_line)
 
             start = next(current_line)
+            if start.type == 'THROW':
+                check_next = next(current_line, None)
+                if not check_next:
+                    raise mylang_errors.InvalidSyntax("At line {}, near '{}': expecting string warning:".format(start.value.line_number, start.value.value))
+                start.value.isValid(check_next.value.value[1:-1])
+                raise mylang_errors.mainexception(check_next.value.value)
             if start.type == 'IMPORT':
                 file_path, flag = mylang_builtins.get_file_path(current_line)
                 parsed_file = Parser(mylang_tokenizer.Tokenize(file_path).tokenized_data)
@@ -2110,6 +2133,52 @@ class Scope:
                         self.token_list = full_switch_case.default
                         self.parse()
                         self.token_list = iter(map(iter, copy_token_list))
+            if start.type == 'FOR':
+                check_next = next(current_line, None)
+                if not check_next:
+                    raise mylang_errors.InvalidSyntax("At line {}, near '{}', expecting iterative value".format(start.value.line_number, start.value.value))
+                start.value.isValid(check_next.value)
+                temp_current = [check_next]+[i for i in current_line]
+                top_at = [i for i, a in enumerate(temp_current) if a.type == 'TORETURN']
+                if not top_at:
+                    raise mylang_errors.InvalidSyntax("Expecting '->' in for-loop header")
+                print 'temp_current[:top_at[0]]', temp_current[:top_at[0]]
+                full_val = self.parse_expression(iter(temp_current[:top_at[0]]))
+                parans_seen = collections.deque(['{']) if any(i.type == 'OBRACKET' for i in temp_current[top_at[0]+1:]) else collections.deque()
+                pipe_to = [i for i in temp_current[top_at[0]+1:] if i.type == 'VARIABLE']
+
+                if not pipe_to:
+                    raise mylang_errors.InvalidSyntax("At line {}, near '->': expecting iterable storage variable".format(check_next.value.line_number))
+                for_loop_namespace = []
+                while True:
+                    c_line = next(self.token_list, None)
+                    if not c_line:
+                        raise mylang_errors.InvalidEndOfRepetitiveBlock("Expecting '}'")
+                    full_line = [i for i in c_line]
+                    if any(i.type == 'OBRACKET' for i in full_line) and not any(i.type == 'CBRACKET' for i in full_line):
+                        parans_seen.append('{')
+                        for_loop_namespace.append(full_line)
+                    elif any(i.type == 'CBRACKET' for i in full_line) and not any(i.type == 'OBRACKET' for i in full_line):
+                        if not parans_seen:
+                            raise mylang_errors.InvalidStartOfSwitchBlock("Expecting a {")
+                        val = parans_seen.pop()
+                        if not parans_seen:
+                            break
+                        else:
+                            for_loop_namespace.append(full_line)
+                    else:
+                        for_loop_namespace.append(full_line)
+
+
+                store_current_token_list = [[b for b in i] for i in self.token_list]
+                copy_current_token_list = copy.deepcopy(store_current_token_list)
+                for current_val_on_iter in getattr(full_val, 'contents', range(full_val) if isinstance(full_val, int) else full_val):
+                    self.variables[pipe_to[0].value.value] = current_val_on_iter
+                    self.scopes[pipe_to[0].value.value] = Scope(pipe_to[0].value.value, [], [], current_namespace = dict([(i, getattr(current_val_on_iter, i)()) for i in ['upper', 'lower', 'capitalize', 'isupper', 'islower']]+[('type', type(current_val_on_iter).__name__)]) if isinstance(current_val_on_iter, str) else dict([('increment', current_val_on_iter+1), ('squared', pow(current_val_on_iter, 2)), ('type', type(current_val_on_iter).__name__), ('toString', str(current_val_on_iter))]) if isinstance(current_val_on_iter, int) else {'type':getattr(current_val_on_iter, 'rep', type(current_val_on_iter).__name__)}, builtins = mylang_builtins.builtin_methods[getattr(current_val_on_iter, 'rep', type(current_val_on_iter).__name__)])
+
+                    self.token_list = iter(map(iter, for_loop_namespace))
+                    self.parse()
+                    self.token_list = iter(map(iter, copy_current_token_list))
             if start.type == 'VARIABLE':
                 checking = next(current_line)
                 start.value.isValid(checking.value)
@@ -2156,6 +2225,7 @@ class Scope:
                     while True:
                         current = next(current_line, None)
                         if not current:
+                            print 'current path', path
                             raise mylang_errors.IllegialPrecedence("At line {}, near '{}', reached abrupt end of statement".format(checking.value.line_number, checking.value.value))
                         if current.type == 'VARIABLE':
                             check_next = next(current_line, None)
@@ -2983,7 +3053,12 @@ class Parser:
             current_line, self.current_line_on = itertools.tee(current_line)
 
             start = next(current_line)
-
+            if start.type == 'THROW':
+                check_next = next(current_line, None)
+                if not check_next:
+                    raise mylang_errors.InvalidSyntax("At line {}, near '{}': expecting string warning:".format(start.value.line_number, start.value.value))
+                start.value.isValid(check_next.value)
+                raise mylang_errors.mainexception(check_next.value.value[1:-1])
             if start.type == 'PRINT':
                 check_next = next(current_line, None)
                 if not check_next:
