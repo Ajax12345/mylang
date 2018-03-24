@@ -1117,7 +1117,7 @@ class Procedure:
 
 
                         self.scopes[possible_name.value.value] = Scope(possible_name.value.value, [], [], current_namespace = {'param_num':len(function_params)})
-                        self.scopes[possible_name.value.value].scopes['signature'] = Scope('Signature', [], [], current_namespace = {'parameters':', '.join(i if not isinstance(i, list) else i[0] for i in function_params), 'types':', '.join('{}:{}'.format(i, None) if not isinstance(i, list) else "{}:{}".format(i[0], i[1]) for i in function_params)})
+                        self.scopes[possible_name.value.value].scopes['signature'] = Scope('Signature', [], [], current_namespace = {'parameters':ArrayList([], filled=[i[0] if isinstance(i, list) else i for i in function_params]), 'types':ArrayList([], filled=[ArrayList([], filled=[i[0], i[-1]]) if isinstance(i, list) else ArrayList([], filled=[i]) for i in function_params])})
                         self.procedures[possible_name.value.value] = Procedure(possible_name.value.value, function_params, procedure_namespace, can_mutate = True, current_namespace = self.variables, return_type = return_type, current_namespace_procedures = self.procedures)
                 if next_start.type == 'PROCEDURE':
                     possible_name = next(current_line, None)
@@ -1162,7 +1162,7 @@ class Procedure:
 
 
                     self.scopes[possible_name.value.value] = Scope(possible_name.value.value, [], [], current_namespace = {'param_num':len(function_params)})
-                    self.scopes[possible_name.value.value].scopes['signature'] = Scope('Signature', [], [], current_namespace = {'parameters':', '.join(i if not isinstance(i, list) else i[0] for i in function_params), 'types':', '.join('{}:{}'.format(i, None) if not isinstance(i, list) else "{}:{}".format(i[0], i[1]) for i in function_params)})
+                    self.scopes[possible_name.value.value].scopes['signature'] = Scope('Signature', [], [], current_namespace = {'parameters':ArrayList([], filled=[i[0] if isinstance(i, list) else i for i in function_params]), 'types':ArrayList([], filled=[ArrayList([], filled=[i[0], i[-1]]) if isinstance(i, list) else ArrayList([], filled=[i]) for i in function_params])})
                     self.procedures[possible_name.value.value] = Procedure(possible_name.value.value, function_params, procedure_namespace, current_namespace = self.variables, return_type = return_type, current_namespace_procedures = self.procedures)
                 if next_start.type == 'SCOPE':
                     params, name, flags = self.parse_scope(next_start, current_line, self.token_list)
@@ -1236,7 +1236,7 @@ class Procedure:
 
 
                 self.scopes[possible_name.value.value] = Scope(possible_name.value.value, [], [], current_namespace = {'param_num':len(function_params)})
-                self.scopes[possible_name.value.value].scopes['signature'] = Scope('Signature', [], [], current_namespace = {'parameters':', '.join(i if not isinstance(i, list) else i[0] for i in function_params), 'types':', '.join('{}:{}'.format(i, None) if not isinstance(i, list) else "{}:{}".format(i[0], i[1]) for i in function_params)})
+                self.scopes[possible_name.value.value].scopes['signature'] = Scope('Signature', [], [], current_namespace = {'parameters':ArrayList([], filled=[i[0] if isinstance(i, list) else i for i in function_params]), 'types':ArrayList([], filled=[ArrayList([], filled=[i[0], i[-1]]) if isinstance(i, list) else ArrayList([], filled=[i]) for i in function_params])})
                 self.procedures[possible_name.value.value] = Procedure(possible_name.value.value, function_params, procedure_namespace, return_type = return_type, current_namespace_procedures = self.procedures)
             if start.type == 'SCOPE':
 
@@ -1658,7 +1658,7 @@ class Scope:
         self.params = params
         self.builtins = kwargs.get('builtins', {})
         #print '======namespace for scope===='
-        
+
             #print i
         #print '='*20
         ##print 'builtins here for name {}'.format(name), self.builtins
@@ -2219,7 +2219,7 @@ class Scope:
 
 
                         self.scopes[possible_name.value.value] = Scope(possible_name.value.value, [], [], current_namespace = {'param_num':len(function_params)})
-                        self.scopes[possible_name.value.value].scopes['signature'] = Scope('Signature', [], [], current_namespace = {'parameters':', '.join(i if not isinstance(i, list) else i[0] for i in function_params), 'types':', '.join('{}:{}'.format(i, None) if not isinstance(i, list) else "{}:{}".format(i[0], i[1]) for i in function_params)})
+                        self.scopes[possible_name.value.value].scopes['signature'] = Scope('Signature', [], [], current_namespace = {'parameters':ArrayList([], filled=[i[0] if isinstance(i, list) else i for i in function_params]), 'types':ArrayList([], filled=[ArrayList([], filled=[i[0], i[-1]]) if isinstance(i, list) else ArrayList([], filled=[i]) for i in function_params])})
                         self.procedures[possible_name.value.value] = Procedure(possible_name.value.value, function_params, procedure_namespace, can_mutate = True, current_namespace = self.variables, return_type = return_type, is_private = self.seen_procedure_private, current_namespace_procedures = self.procedures)
                         self.seen_procedure_private = False
                 if next_start.type == 'PROCEDURE':
@@ -2266,7 +2266,7 @@ class Scope:
 
 
                     self.scopes[possible_name.value.value] = Scope(possible_name.value.value, [], [], current_namespace = {'param_num':len(function_params)})
-                    self.scopes[possible_name.value.value].scopes['signature'] = Scope('Signature', [], [], current_namespace = {'parameters':', '.join(i if not isinstance(i, list) else i[0] for i in function_params), 'types':', '.join('{}:{}'.format(i, None) if not isinstance(i, list) else "{}:{}".format(i[0], i[1]) for i in function_params)})
+                    self.scopes[possible_name.value.value].scopes['signature'] = Scope('Signature', [], [], current_namespace = {'parameters':ArrayList([], filled=[i[0] if isinstance(i, list) else i for i in function_params]), 'types':ArrayList([], filled=[ArrayList([], filled=[i[0], i[-1]]) if isinstance(i, list) else ArrayList([], filled=[i]) for i in function_params])})
                     self.procedures[possible_name.value.value] = Procedure(possible_name.value.value, function_params, procedure_namespace, current_namespace = self.variables, return_type = return_type, is_private = self.seen_procedure_private, current_namespace_procedures = self.procedures)
                     self.seen_procedure_private = False
                 if next_start.type == 'SCOPE':
@@ -2337,7 +2337,7 @@ class Scope:
 
 
                 self.scopes[possible_name.value.value] = Scope(possible_name.value.value, [], [], current_namespace = {'param_num':len(function_params)})
-                self.scopes[possible_name.value.value].scopes['signature'] = Scope('Signature', [], [], current_namespace = {'parameters':', '.join(i if not isinstance(i, list) else i[0] for i in function_params), 'types':', '.join('{}:{}'.format(i, None) if not isinstance(i, list) else "{}:{}".format(i[0], i[1]) for i in function_params)})
+                self.scopes[possible_name.value.value].scopes['signature'] = Scope('Signature', [], [], current_namespace = {'parameters':ArrayList([], filled=[i[0] if isinstance(i, list) else i for i in function_params]), 'types':ArrayList([], filled=[ArrayList([], filled=[i[0], i[-1]]) if isinstance(i, list) else ArrayList([], filled=[i]) for i in function_params])})
                 self.procedures[possible_name.value.value] = Procedure(possible_name.value.value, function_params, procedure_namespace, return_type = return_type, is_private = self.seen_procedure_private, current_namespace_procedures = self.procedures)
                 self.seen_procedure_private = False
             if start.type == 'SCOPE':
@@ -3281,7 +3281,7 @@ class Parser:
 
 
                         self.scopes[possible_name.value.value] = Scope(possible_name.value.value, [], [], current_namespace = {'param_num':len(function_params)})
-                        self.scopes[possible_name.value.value].scopes['signature'] = Scope('Signature', [], [], current_namespace = {'parameters':', '.join(i if not isinstance(i, list) else i[0] for i in function_params), 'types':', '.join('{}:{}'.format(i, None) if not isinstance(i, list) else "{}:{}".format(i[0], i[1]) for i in function_params)})
+                        self.scopes[possible_name.value.value].scopes['signature'] = Scope('Signature', [], [], current_namespace = {'parameters':ArrayList([], filled=[i[0] if isinstance(i, list) else i for i in function_params]), 'types':ArrayList([], filled=[ArrayList([], filled=[i[0], i[-1]]) if isinstance(i, list) else ArrayList([], filled=[i]) for i in function_params])})
                         self.procedures[possible_name.value.value] = Procedure(possible_name.value.value, function_params, procedure_namespace, can_mutate = True, current_namespace = self.variables, return_type = return_type, current_namespace_procedures = self.procedures)
                 if next_start.type == 'PROCEDURE':
                     possible_name = next(current_line, None)
@@ -3325,7 +3325,7 @@ class Parser:
                     #print 'final_namespace discovered', procedure_namespace
 
                     self.scopes[possible_name.value.value] = Scope(possible_name.value.value, [], [], current_namespace = {'param_num':len(function_params)})
-                    self.scopes[possible_name.value.value].scopes['signature'] = Scope('Signature', [], [], current_namespace = {'parameters':', '.join(i if not isinstance(i, list) else i[0] for i in function_params), 'types':', '.join('{}:{}'.format(i, None) if not isinstance(i, list) else "{}:{}".format(i[0], i[1]) for i in function_params)})
+                    self.scopes[possible_name.value.value].scopes['signature'] = Scope('Signature', [], [], current_namespace = {'parameters':ArrayList([], filled=[i[0] if isinstance(i, list) else i for i in function_params]), 'types':ArrayList([], filled=[ArrayList([], filled=[i[0], i[-1]]) if isinstance(i, list) else ArrayList([], filled=[i]) for i in function_params])})
                     self.procedures[possible_name.value.value] = Procedure(possible_name.value.value, function_params, procedure_namespace, current_namespace = self.variables, return_type = return_type, current_namespace_procedures = self.procedures)
                 if next_start.type == 'SCOPE':
                     params, name, flags = self.parse_scope(next_start, current_line, self.token_list)
@@ -3409,7 +3409,7 @@ class Parser:
                 #print 'procedure namespace discovery', procedure_namespace
 
                 self.scopes[possible_name.value.value] = Scope(possible_name.value.value, [], [], current_namespace = {'param_num':len(function_params)})
-                self.scopes[possible_name.value.value].scopes['signature'] = Scope('Signature', [], [], current_namespace = {'parameters':', '.join(i if not isinstance(i, list) else i[0] for i in function_params), 'types':', '.join('{}:{}'.format(i, None) if not isinstance(i, list) else "{}:{}".format(i[0], i[1]) for i in function_params)})
+                self.scopes[possible_name.value.value].scopes['signature'] = Scope('Signature', [], [], current_namespace = {'parameters':ArrayList([], filled=[i[0] if isinstance(i, list) else i for i in function_params]), 'types':ArrayList([], filled=[ArrayList([], filled=[i[0], i[-1]]) if isinstance(i, list) else ArrayList([], filled=[i]) for i in function_params])})
                 self.procedures[possible_name.value.value] = Procedure(possible_name.value.value, function_params, procedure_namespace, return_type= return_type, current_namespace_procedures = self.procedures)
             if start.type == 'SCOPE':
                 params, name, flags = self.parse_scope(start, current_line, self.token_list)
