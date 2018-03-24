@@ -848,6 +848,19 @@ class Procedure:
                     self.parse()
                     self.token_list = iter(map(iter, copy_current_token_list))
 
+            if start.type == 'IMPORT':
+                file_path, flag = mylang_builtins.get_file_path(current_line)
+                parsed_file = Parser(mylang_tokenizer.Tokenize(file_path).tokenized_data)
+                if flag == ImportAll:
+
+                    self.variables.update(parsed_file.variables)
+                    self.scopes = self.scopes+parsed_file.scopes
+                    self.procedures.update_procedures(parsed_file.procedures)
+                else:
+
+                    self.scopes[re.split('[/\.]', file_path)[-2]] = Scope(re.split('[/\.]', file_path)[-2], [], [], current_namespace = parsed_file.variables)
+                    self.scopes[re.split('[/\.]', file_path)[-2]].scopes = parsed_file.scopes
+                    self.scopes[re.split('[/\.]', file_path)[-2]].procedures.update_procedures(parsed_file.procedures)
             if start.type == 'SWITCH':
                 test_second = next(current_line, None)
                 if not test_second:
@@ -1482,6 +1495,7 @@ class Procedure:
                             ##print 'current_params_check here for {}'.format(path[-1]), current_params_check
 
                             current_scope_1 = self.scopes if path[0] not in self.variables else self.variables
+                            
                             path_copy = copy.deepcopy(list(path))
                             path = list(path)
                             while path:
@@ -1980,6 +1994,19 @@ class Scope:
             current_line, self.current_line_on = itertools.tee(current_line)
 
             start = next(current_line)
+            if start.type == 'IMPORT':
+                file_path, flag = mylang_builtins.get_file_path(current_line)
+                parsed_file = Parser(mylang_tokenizer.Tokenize(file_path).tokenized_data)
+                if flag == ImportAll:
+
+                    self.variables.update(parsed_file.variables)
+                    self.scopes = self.scopes+parsed_file.scopes
+                    self.procedures.update_procedures(parsed_file.procedures)
+                else:
+
+                    self.scopes[re.split('[/\.]', file_path)[-2]] = Scope(re.split('[/\.]', file_path)[-2], [], [], current_namespace = parsed_file.variables)
+                    self.scopes[re.split('[/\.]', file_path)[-2]].scopes = parsed_file.scopes
+                    self.scopes[re.split('[/\.]', file_path)[-2]].procedures.update_procedures(parsed_file.procedures)
             if start.type == 'PRINT':
                 check_next = next(current_line, None)
                 if not check_next:
@@ -2956,6 +2983,7 @@ class Parser:
             current_line, self.current_line_on = itertools.tee(current_line)
 
             start = next(current_line)
+
             if start.type == 'PRINT':
                 check_next = next(current_line, None)
                 if not check_next:
