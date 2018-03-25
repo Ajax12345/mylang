@@ -8,3 +8,62 @@ procedure filter(the_type:str, target_list:ArrayList) -> ArrayList{
   }
   return new_l
 }
+
+procedure range(start:int, stop:int){
+  final_vals = {}
+  for stop -> i{
+    switch(i){
+      case.ge start:
+        final_vals.addBack(i)
+    }
+  }
+  return final_vals
+}
+
+
+procedure isPrime(val:int) -> int{
+  import utils
+  for utils.range(2, val) -> i{
+    switch(val%i){
+      case.eq 0:
+        return 0
+    }
+  }
+  return 1
+}
+
+
+
+procedure sum(arlist:ArrayList){
+  total = 0;
+  for arlist -> i{
+    total = total + i
+  }
+  return total
+}
+
+
+procedure lookupTable(vals:ArrayList, key){
+  data_listing = {}
+  for vals -> val{
+    switch(val.type){
+      case.ne "ArrayList":
+          throw "scalar value in array found"
+
+        }
+    }
+  for vals -> val{
+    switch(key){
+      case.eq val.itemAt(0):
+        data_listing.addBack(val.itemAt(1))
+    }
+  }
+    arr_len = data_listing.length()
+    switch(arr_len){
+      case.eq 1:
+        return data_listing.itemAt(0)
+      default:
+        return data_listing
+    }
+
+  }
