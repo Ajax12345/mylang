@@ -15,4 +15,4 @@ procedure sum(arlist:ArrayList){
 s = sum(l)
 print s
 ```
->>> myLang console OUT:  1184
+myLang console OUT:  1184
