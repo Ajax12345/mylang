@@ -20,7 +20,6 @@ import os
 class SwitchCase:
     def __init__(self, cases, default = None, **kwargs):
         self.cases = cases
-
         self.default = default
         self.first_option = []
         self.variables = kwargs.get('variables', None)
@@ -897,6 +896,7 @@ class Procedure:
                 current_stack = collections.deque(['{']) if any(i.type == 'OBRACKET' for i in temp_copy) else collections.deque()
                 switch_namespace = []
                 while True:
+
                     current_test_line = next(self.token_list, None)
                     if not current_test_line:
                         raise mylang_errors.ReachedEndOfSwitchBlock("Expecting '}'")
@@ -904,7 +904,7 @@ class Procedure:
                     if any(i.type == 'OBRACKET' for i in the_line) and not any(i.type == 'CBRACKET' for i in the_line):
                         current_stack.append('{')
                         switch_namespace.append(the_line)
-                    elif any(i.type == 'CBRACKET' for i in the_line) and not any(i.type == 'OBRACKET' for i in the_line):
+                    elif any(i.type == 'CBRACKET' for i in the_line):
                         if not current_stack:
                             raise mylang_errors.InvalidStartOfSwitchBlock("Expecting '{'")
                         val = current_stack.pop()
@@ -1522,6 +1522,9 @@ class Procedure:
                             except:
                                 if len(path_copy) == 1:
                                     #print (path_copy, temp_path.value.value, current_scope_1)
+                                    print 'issue vals here', path_copy[-1]
+                                    print 'temp_path.value.value', temp_path.value.value
+                                    print 'scopes', self.scopes
                                     return self.scopes[path_copy[-1]].builtins[temp_path.value.value](path_copy[-1], current_scope_1, *current_params_check)
                                 scope_object = self.scopes if path_copy[0] not in self.variables else self.variables
 
@@ -1597,7 +1600,7 @@ class Procedure:
             if test_final.type in operation_converters:
                 returned_val = self.parse_assign(line)
                 if type(returned_val) != type(self.variables[current.value.value]):
-                    raise mylang_errors.IncompatableTypes("At line {}, near {}, cannot {} variable of type '{}' to type '{}'".format(current.value.line_number, current.value.value, {'PLUS':'concatinate', 'BAR':'subtract', 'STAR':'multiply', 'FORWARDSLASH':'divide'}[test_final.type], type(self.variables[current.value.value]).__name__, type(returned_val).__name__))
+                    raise mylang_errors.IncompatableTypes("At line {}, near {}, cannot {} variable of type '{}' to type '{}'".format(current.value.line_number, current.value.value, {'PLUS':'concatinate', 'BAR':'subtract', 'STAR':'multiply', 'FORWARDSLASH':'divide', 'MODULO':'modulo'}[test_final.type], type(self.variables[current.value.value]).__name__, type(returned_val).__name__))
                 return operation_converters[test_final.type](self.variables[current.value.value], returned_val)
         if current.type == 'DIGIT':
             test_final = next(line, None)
@@ -2222,14 +2225,64 @@ class Scope:
                 if checking.type == 'DOT':
                     path = collections.deque([start.value.value])
                     to_assign = None
+                    seen_method_call = False
                     while True:
                         current = next(current_line, None)
                         if not current:
-                            print 'current path', path
                             raise mylang_errors.IllegialPrecedence("At line {}, near '{}', reached abrupt end of statement".format(checking.value.line_number, checking.value.value))
+
                         if current.type == 'VARIABLE':
                             check_next = next(current_line, None)
                             current.value.isValid(check_next.value)
+                            if check_next.type == 'OPAREN':
+                                checking_next_val = next(current_line, None)
+                                if not checking_next_val:
+                                    raise mylang_errors.InvalidParameterType("At line {}, near '{}'. Expecting variable or ')'".format(check_next.value.line_number, check_next.value.value))
+                                check_next.value.isValid(checking_next_val.value)
+                                if checking_next_val.type == 'CPAREN':
+                                    starting_base = self.scopes if path[0] not in self.variables else self.variables
+
+                                    path = list(path)
+                                    while path:
+                                        starting_base = starting_base[path[0]]
+                                        path = path[1:]
+                                    starting_base.procedures[current.value.value]()
+
+                                    seen_method_call = True
+                                    current_line = iter([checking_next_val]+[i for i in current_line])
+                                    break
+                                current_line = iter([checking_next_val]+[i for i in current_line])
+                                current_method_params = []
+                                while True:
+                                    current_method_param = self.parse_expression(current_line)
+                                    current_method_params.append(current_method_param)
+                                    checking_to_continue = next(current_line, None)
+                                    if not checking_to_continue:
+                                        break
+                                    current_line = iter([checking_to_continue]+[i for i in current_line])
+                                starting_base = self.scopes if path[0] not in self.variables else self.variables
+
+                                path = list(path)
+                                path_copy = copy.deepcopy(path)
+                                while path:
+                                    starting_base = starting_base[path[0]]
+                                    path = path[1:]
+                                try:
+
+                                    builtin_procedure = mylang_builtins.builtin_methods[getattr(starting_base, 'rep', type(starting_base).__name__)]
+                                    #print 'builtin_procedure here', builtin_procedure
+                                except (KeyError, IndexError):
+                                    pass
+
+                                else:
+                                    builtin_procedure[current.value.value]
+                                    builtin_procedure[current.value.value](path_copy[-1], starting_base, *current_method_params)
+                                    seen_method_call = True
+                                    break
+                                Scope.private_procedure_check(starting_base.procedures[current.value.value])
+                                starting_base.procedures[current.value.value](*current_method_params)
+                                seen_method_call = True
+                                break
                             if check_next.type == "DOT":
                                 path.append(current.value.value)
                             if check_next.type == 'ASSIGN':
@@ -2237,9 +2290,8 @@ class Scope:
                                 to_assign = self.parse_assign(current_line)
                                 break
 
-
-                    self.scopes[path[0]].update_vals(list(path)[1:], to_assign)
-
+                    if not seen_method_call:
+                        self.scopes[path[0]].update_vals(list(path)[1:], to_assign)
 
             if start.type == 'PRIVATE':
 
@@ -3117,6 +3169,7 @@ class Parser:
 
 
             if start.type == 'SWITCH':
+
                 test_second = next(current_line, None)
                 if not test_second:
                     raise mylang_errors.InvalidParameterType("At line {}, near '{}': expecting '('".format(start.value.line_number, start.value.value))
@@ -3135,6 +3188,7 @@ class Parser:
                     current_line = iter([check_second]+[i for i in current_line])
 
                 current_stack = collections.deque(['{']) if any(i.type == 'OBRACKET' for i in temp_copy) else collections.deque()
+
                 switch_namespace = []
                 while True:
                     current_test_line = next(self.token_list, None)
@@ -3144,17 +3198,44 @@ class Parser:
                     if any(i.type == 'OBRACKET' for i in the_line) and not any(i.type == 'CBRACKET' for i in the_line):
                         current_stack.append('{')
                         switch_namespace.append(the_line)
-                    elif any(i.type == 'CBRACKET' for i in the_line) and not any(i.type == 'OBRACKET' for i in the_line):
+                    elif any(i.type == 'CBRACKET' for i in the_line):
                         if not current_stack:
                             raise mylang_errors.InvalidStartOfSwitchBlock("Expecting '{'")
                         val = current_stack.pop()
+                        print 'val', val
                         if not current_stack:
                             break
                         else:
                             switch_namespace.append(the_line)
                     else:
                         switch_namespace.append(the_line)
-                #print 'switch data: params:', params
+
+                class Group:
+                    def __init__(self, full_data):
+                        self.current_namespace = [next(full_data)]
+                        self.full_data = full_data
+                        self.parse()
+                    def parse(self):
+                        while True:
+                            next_row = next(self.full_data, None)
+                            if not next_row:
+                                break
+                            if next_row[0].type == 'CBRACKET':
+                                self.current_namespace[-1].append(next_row)
+                                break
+                            if any(i.type == 'OBRACKET' for i in next_row) and not any(i.type == 'CBRACKET' for i in next_row):
+                                result = Group(self.full_data)
+                                self.current_namespace.append([next_row, result.current_namespace])
+                                self.full_data = result.full_data
+                            else:
+                                self.current_namespace.append(next_row)
+                final_results = Group(iter(switch_namespace))
+
+
+                for i in final_results.current_namespace:
+                    print '*'*20
+                    print i
+                    print '*'*20
                 cases = [list(b) for _, b in itertools.groupby(switch_namespace, key=lambda x:x[0].type == 'CASE' or x[0].type == 'DEFAULT')]
 
                 default_cases = cases[-2:] if cases[-2][0][0].type == 'DEFAULT' else None
