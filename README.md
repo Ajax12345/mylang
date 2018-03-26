@@ -22,6 +22,6 @@ myLang console OUT:  1184
 https://ajax12345.github.io/mylang_home/
 
 ## Installation
-myLang only requires Python to run. Just download the source and run.
+myLang only requires Python to run. Just download the source and execute.
 
 
