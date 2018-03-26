@@ -1,0 +1,112 @@
+<html>
+  <style>
+  .function{
+      color:#A60AE5
+  }
+  .function_name{
+      color:#5C5EE1
+  }
+  .builtin_statement{
+        color:#A60AE5
+  }
+  .scope_container{
+      color:#D7D7D7
+  }
+  .for_loop{
+      color:#DD2176;
+  }
+  .pipe_to{
+      color:#F5C70D
+  }
+  .digit{
+      color:#D3AF1D
+  }
+  .type{
+     color:#8ED52D;
+  }
+  .variable{
+    color:#B6B6B5
+  }
+  </style>
+  <head>
+    <script defer src="https://use.fontawesome.com/releases/v5.0.3/js/all.js"></script>
+      <meta name="viewport" content="width=device-width, initial-scale=1">
+      <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta.2/css/bootstrap.min.css">
+      <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.6/umd/popper.min.js"></script>
+      <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta.2/js/bootstrap.min.js"></script>
+  </head>
+<body>
+  <nav class="navbar navbar-expand-lg navbar-light" style='background-color:#7EA9F0'>
+  <a class="navbar-brand" href="#" style='size:40px;color:white;'>myLang</a>
+  <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+    <span class="navbar-toggler-icon"></span>
+  </button>
+  <div class="collapse navbar-collapse" id="navbarNav">
+    <ul class="navbar-nav">
+      <li class="nav-item">
+        <a class="nav-link" href="/docs">docs</a>
+      </li>
+      <a href="https://github.com/Ajax12345/mylang/tree/master/mylang"><img style="position: absolute; top: 0; right: 0; border: 0;" src="https://s3.amazonaws.com/github/ribbons/forkme_right_orange_ff7600.png" alt="Fork me on GitHub"></a>
+    </ul>
+  </div>
+
+</nav>
+<div class='main_bar' style = 'background-color:#1962DA;width:auto;height:60%'>
+  <div class="container">
+<div class="row">
+  <div class="col">
+      <div class='spacing_top' style='height:20px;'></div>
+    <h3 style='size:60px;color:#B8B8B8;'><span style='color:white'>myLang</span> is a toy programming language desired to increase the functionalities of Python and Javascript, right from a .txt file</p1>
+  </div>
+  <div class="col">
+    <div class='spacing_top' style='height:20px;'></div>
+
+    <div class='editor' style='width:200x;height:350px;background-color:#484848;border-radius:5px;'>
+      <div class='container'>
+        <div class='row'>
+          <div class='col'>
+            <p style='color:white;padding-left:6px;'>sum_array.m</p>
+          </div>
+          <div class='col-8' style='background-color:#939294;width:100px;height:20px;border-top-right-radius:4px;'>
+          </div>
+        </div>
+      </div>
+      <pre><code>
+        <span class='variable'>l</span> <span class='scope_container'>=</span> <span class='scope_container'>{</span><span class='digit'>34</span><span class='scope_container'>,</span> <span class='digit'>133</span><span class='scope_container'>,</span> <span class='digit'>24</span><span class='scope_container'>,</span> <span class='digit'>424</span><span class='scope_container'>,</span> <span class='digit'>535</span><span class='scope_container'>,</span> <span class='digit'>34</span><span class='scope_container'>}</span>
+        <span class='function'>procedure</span> <span class='function_name'>sum</span><span class='scope_container'>(</span><span class='variable'>arlist</span><span class='scope_container'>:</span><span class='type'>ArrayList</span><span class='scope_container'>)</span><span class='scope_container'>{</span>
+           <span class='variable'>total</span> <span class='scope_container'>=</span> <span class='digit'>0</span>;
+           <span class='for_loop'>for</span> <span class='variable'>arlist</span> <span class='pipe_to'>-></span> <span class='variable'>i</span><span class='scope_container'>{</span>
+             <span class='variable'>total</span> <span class='scope_container'>=</span> <span class='variable'>total</span> <span class='scope_container'> + </span> <span class='variable'>i</span>
+           <span class='scope_container'>}</span>
+           <span class='builtin_statement'>return</span> <span class='variable'>total</span>
+        <span class='scope_container'>}</span>
+
+        <span class='variable'>s</span> <span class='scope_container'>=</span> <span class='function_name'>sum</span><span class='scope_container'>(</span>l<span class='scope_container'>)</span>
+        <span class='builtin_statement'>print</span> <span class='variable'>s</span>
+
+        </pre></code>
+
+    </div>
+
+  </div>
+  </div>
+</div>
+</div>
+
+<div class='container' style='padding-top:60px;'>
+  <div class='row'>
+    <div class='col'>
+      <h1>Simple.</h1>
+    </div>
+    <div class='col'>
+        <h1>Intuitive.</h1>
+    </div>
+    <div class='col'>
+      <h1>Familiar.</h1>
+    </div>
+  </div>
+</div>
+</body>
+
+</html>
