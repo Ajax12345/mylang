@@ -69,106 +69,44 @@ procedure lookupTable(vals:ArrayList, key){
 
   }
 
+procedure max(input:ArrayList){
 
-
-
-  scope HashTable{
-    import utils
-    hashlist = {}
-    full_table = {}
-    for utils.range(2, 200) -> i{
-      new_l = {}
-      hashlist.addBack(new_l)
-      full_table.addBack(new_l)
-    }
-    global procedure getValueDefault(key, default_key){
-    switch(key.type){
-      case.eq "ArrayList":
-        new_r = key.length()
-      case.eq.optional "str":
-        new_r = key.length()
-        new_r = new_r.increment
-      default:
-        new_r = key
-    }
-    hashed_result = new_r%211
-    new_hashed_result = hashed_result%200
-    print hashed_result
-    current = hashlist
-    current_item = current.itemAt(new_hashed_result)
-    switch(current_item.type){
-      case.ne "ArrayList":
-        return current_item
-      default:
-        return default_key
-    }
-    }
-    global procedure getValue(key){
-      switch(key.type){
-        case.eq "ArrayList":
-          new_r = key.length()
-        case.eq.optional "str":
-          new_r = key.length()
-          new_r = new_r.increment
-        default:
-          new_r = key
+    current = 0;
+    for input -> i{
+      switch(i){
+        case.gt current:
+          current = i
       }
-      hashed_result = new_r%211
-      new_hashed_result = hashed_result%200
-      print hashed_result
-      current = hashlist
-      current_item = current.itemAt(new_hashed_result)
-      switch(current_item.type){
-        case.ne "ArrayList":
-          return current_item
-        default:
-          throw "key not found"
+    }
+    return current
+  }
+
+
+  procedure min(input:ArrayList){
+    current = input.itemAt(0)
+    for input -> i{
+      switch(i){
+        case.lt current:
+          current = i
       }
+    }
+    return current
+  }
+
+
+  procedure zip(input:ArrayList) -> ArrayList{
+    start = input.itemAt(0)
+    final_result = {}
+    start_length = start.length()
+    for start_length -> i{
+      current_listing = {}
+      for input -> c{
+        final_val = c.itemAt(i)
+        current_listing.addBack(final_val)
+
+      }
+      final_result.addBack(current_listing)
 
     }
-    global procedure addPair(key, value){
-      switch(key.type){
-        case.eq "ArrayList":
-            r1 = key.length()
-            new_r = r1+1
-            hashed_result = new_r%211%200
-        case.eq.optional "str":
-          r1 = key.length()
-          new_r = r1+1
-          hashed_result = new_r % 211
-          hashed_result = hashed_result%200
-
-        default:
-          hashed_result = key%211
-          hashed_result = hashed_result%200
-      }
-      current_val = hashlist
-      temp_item = current_val.itemAt(hashed_result)
-      switch(temp_item.type){
-        case.eq "ArrayList":
-          current_length = temp_item.length()
-        default:
-          current_length = "False"
-      }
-      switch(current_length){
-        case.eq "False":
-          temp_holder = full_table
-          placeholder = temp_holder.itemAt(hashed_result)
-          placeholder.addBack(key)
-          temp_holder.updateAt(hashed_result, placeholder)
-          place = temp_item.itemAt(hashed_result)
-          place.addBack(value)
-          current_length.updateAt(hashed_result, place)
-          hashlist = current_val
-          full_table = place
-        default:
-          current_val.updateAt(hashed_result, value)
-          hashlist = current_val
-      }
-
-
-
-
-    }
-
+    return final_result
   }
