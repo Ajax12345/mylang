@@ -18,8 +18,11 @@ print s
 myLang console OUT:  1184
 
 
-## docs:
+
 https://ajax12345.github.io/mylang_home/
+
+## Docs
+comming soon 
 
 ## Installation
 myLang only requires Python to run. Just download the source and execute.
